@@ -18,7 +18,10 @@ Expected layout:
 Set BOOTLOOPS_ROOT when the checkout lives elsewhere. The resident Python layer is pinned in `requirements-core.txt`; bootstrap tooling is pinned in `requirements-tooling.txt`.
 
 Bootstrap:
-    bash bootloops-lab/local/bootstrap.sh\n\nThen verify the environment strictly:\n    bash bootloops-lab/local/doctor.sh
+    bash bootloops-lab/local/bootstrap.sh
+
+Then verify the environment strictly:
+    bash bootloops-lab/local/doctor.sh
 
 Then:
     python -m bootloops_lab.cli --bootloops-root vendor/bootloops catalog

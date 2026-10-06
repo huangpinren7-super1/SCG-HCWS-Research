@@ -237,7 +237,7 @@ jobs:
           echo '## Environment' >> "$GITHUB_STEP_SUMMARY"
           echo "- BootLoops ref: $BOOTLOOPS_REF_ACTUAL" >> "$GITHUB_STEP_SUMMARY"
           echo '- Runner: Ubuntu 24.04' >> "$GITHUB_STEP_SUMMARY"
-          echo "- Python: $(python --version)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Python: $($RESEARCH_PYTHON --version)" >> "$GITHUB_STEP_SUMMARY"
           echo "- Julia: $(julia --version)" >> "$GITHUB_STEP_SUMMARY"
           if command -v sage >/dev/null 2>&1; then echo "- Sage: $(sage --version)" >> "$GITHUB_STEP_SUMMARY"; else echo '- Sage: unavailable (setup step did not complete)' >> "$GITHUB_STEP_SUMMARY"; fi
           echo "- Sage ore_algebra ref: ${ORE_ALGEBRA_REF:-unavailable}" >> "$GITHUB_STEP_SUMMARY"
