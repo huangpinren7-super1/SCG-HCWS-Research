@@ -1,23 +1,16 @@
 from pathlib import Path
-
 import yaml
-
 from bootloops_lab.catalog import load_catalog
 
+def test_registry_contract():
+    r = yaml.safe_load((Path(__file__).parent / "registry.yaml").read_text(encoding="utf-8"))
+    assert r["default_timeout"] == 300
+    assert r["max_timeout"] == 1200
+    assert len(r["tools"]) >= 25
+    root = Path(__file__).resolve().parents[1] / "vendor" / "bootloops"
+    if root.exists():
+        assert set(r["tools"]).issubset(load_catalog(root))
 
-def test_gateway_registry_is_subset_of_canonical_catalog():
-    root = Path(__file__).resolve().parents[1] / 'vendor' / 'bootloops'
-    if not root.exists():
-        return
-    reg = yaml.safe_load((Path(__file__).parent / 'registry.yaml').read_text())
-    catalog = load_catalog(root)
-    assert reg['max_timeout'] == 1200
-    assert reg['default_timeout'] == 300
-    assert set(reg['tools']).issubset(catalog)
-
-
-def test_no_shell_operation_in_registry():
-    reg = yaml.safe_load((Path(__file__).parent / 'registry.yaml').read_text())
-    for spec in reg['tools'].values():
-        assert 'shell' not in spec
-        assert 'command' not in spec
+def test_registry_has_no_raw_execution_fields():
+    r = yaml.safe_load((Path(__file__).parent / "registry.yaml").read_text(encoding="utf-8"))
+    assert all("shell" not in spec and "command" not in spec for spec in r["tools"].values())
