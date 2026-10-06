@@ -1,24 +1,39 @@
 name: BootLoops-Lab Infrastructure Smoke
 
 on:
-  push:
+  pull_request:
     paths:
+      - ".github/workflows/**"
       - "bootloops_lab/**"
       - "gateway/**"
-      - "bootloops-lab/local/**"
+      - "bootloops-lab/**"
+      - "experiments/**"
+      - "certificates/**"
+      - "schemas/**"
       - "reference/**"
-      - ".github/workflows/lab-smoke.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "bootloops_lab/**"
+      - "gateway/**"
+      - "bootloops-lab/**"
+      - "experiments/**"
+      - "certificates/**"
+      - "schemas/**"
+      - "reference/**"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: bootloops-lab-smoke
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   smoke:
+    name: BootLoops-Lab Infrastructure Smoke
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -38,7 +53,7 @@ jobs:
       - name: Install interface dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pyyaml pytest
+          python -m pip install pyyaml pytest jsonschema numpy python-flint
 
       - name: Static catalog/interface smoke
         run: |
@@ -47,7 +62,7 @@ jobs:
           python - <<'PY'
           import json
           d=json.load(open("/tmp/catalog.json"))
-          assert len(d) >= 49
+          assert len(d) == 49
           print("catalog entries:", len(d))
           print("interface smoke: PASS")
           PY
@@ -61,7 +76,12 @@ jobs:
           print("bootloops_lab import: PASS")
           PY
 
+      - name: Truth-injected finite-algebra benchmark
+        run: |
+          python bootloops-lab/scripts/test_toolchain_truth.py --bootloops-root vendor/bootloops
+
       - name: Shell syntax smoke
         run: |
           bash -n bootloops-lab/local/bootstrap.sh
-          echo "bootstrap shell syntax: PASS"
+          bash -n bootloops-lab/local/doctor.sh
+          echo "bootstrap/doctor shell syntax: PASS"
