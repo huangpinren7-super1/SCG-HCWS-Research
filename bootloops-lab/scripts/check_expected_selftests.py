@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-import sys
+import argparse
 from collections import Counter
 from pathlib import Path
 
@@ -11,15 +11,22 @@ CONFIRMED = "CONFIRMED"
 
 
 def main() -> int:
-    if len(sys.argv) != 3:
-        print("usage: check_expected_selftests.py ACTUAL.json EXPECTED.json", file=sys.stderr)
-        return 2
+    ap = argparse.ArgumentParser()
+    ap.add_argument("actual")
+    ap.add_argument("expected")
+    ap.add_argument(
+        "--allow-provisional",
+        action="store_true",
+        help="compare a provisional baseline without failing solely because it is not yet CONFIRMED",
+    )
+    args = ap.parse_args()
 
-    actual = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-    expected = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+    actual = json.loads(Path(args.actual).read_text(encoding="utf-8"))
+    expected = json.loads(Path(args.expected).read_text(encoding="utf-8"))
 
     errors: list[str] = []
-    if expected.get("status") != CONFIRMED:
+    promotion_pending = expected.get("status") != CONFIRMED
+    if promotion_pending and not args.allow_provisional:
         errors.append(
             f"baseline status is {expected.get('status')!r}; "
             "only CONFIRMED baselines may gate acceptance"
@@ -64,6 +71,7 @@ def main() -> int:
         "schema": "scg-hcws-selftest-baseline-check-v2",
         "valid": not errors,
         "baseline_status": expected.get("status"),
+        "promotion_pending": promotion_pending,
         "counts": dict(sorted(counts.items())),
         "verification_class_counts": dict(sorted(class_counts.items())),
         "errors": errors,
@@ -72,7 +80,10 @@ def main() -> int:
     if errors:
         print("EXPECTED BASELINE CHECK: FAIL", file=sys.stderr)
         return 1
-    print("EXPECTED BASELINE CHECK: PASS")
+    if promotion_pending:
+        print("EXPECTED BASELINE CHECK: PASS (comparison valid; promotion still pending)")
+    else:
+        print("EXPECTED BASELINE CHECK: PASS")
     return 0
 
 
