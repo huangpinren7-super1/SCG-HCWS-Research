@@ -106,6 +106,21 @@ jobs:
           import sage.all, ore_algebra
           print('SageMath + ore_algebra: PASS')
           PY
+      - name: Put research Python first on PATH
+        run: |
+          set -euo pipefail
+          echo "$(dirname \"$RESEARCH_PYTHON\")" >> "$GITHUB_PATH"
+
+      - name: Verify canonical Python resolution
+        run: |
+          set -euo pipefail
+          test "$(python3 -c 'import sys; print(sys.executable)')" = "$RESEARCH_PYTHON"
+          test "$(python -c 'import sys; print(sys.executable)')" = "$RESEARCH_PYTHON"
+          python3 --version
+          python --version
+          command -v python3
+          command -v python
+
       - name: Prepare Oscar/JSON Julia environment for dipstick
         run: |
           set -euo pipefail
@@ -184,9 +199,30 @@ jobs:
           cmake --build vendor/blade/build --parallel 2
           cmake --install vendor/blade/build
           test -x vendor/blade/bin/redg1; test -x vendor/blade/bin/fitrel; test -x vendor/blade/bin/fflowcli; test -x vendor/blade/bin/dumppoints
+          BLADE_LD_LIBRARY_PATH="$FFPREFIX/lib:$GITHUB_WORKSPACE/vendor/blade/lib"
+          export LD_LIBRARY_PATH="$BLADE_LD_LIBRARY_PATH:${LD_LIBRARY_PATH:-}"
+          for exe in redg1 fitrel recmod dynamicrr dumppoints fflowcli fflowcli_stream ssolve; do
+            ldd "vendor/blade/bin/$exe" > "$RUNNER_TEMP/ldd-$exe.txt"
+            if grep -q "not found" "$RUNNER_TEMP/ldd-$exe.txt"; then
+              echo "Blade dynamic-link failure for $exe"
+              cat "$RUNNER_TEMP/ldd-$exe.txt"
+              exit 1
+            fi
+          done
+          "$RESEARCH_PYTHON" - <<'PY'
+          import importlib.util
+          import sys
+          import sysconfig
+          import flint
+          print("research Python:", sys.executable)
+          print("SOABI:", sysconfig.get_config_var("SOABI"))
+          print("python-flint:", flint.__file__)
+          assert importlib.util.find_spec("blade") is not None
+          PY
+          PYTHONPATH="$GITHUB_WORKSPACE/vendor/bootloops/tools" "$RESEARCH_PYTHON" -c 'import blade, blade.pipeline; print("Blade Python layer: PASS")'
           echo "BLADE_BIN_DIR=$GITHUB_WORKSPACE/vendor/blade/bin" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=$FFPREFIX/lib:$GITHUB_WORKSPACE/vendor/blade/lib" >> "$GITHUB_ENV"
-          echo 'Blade engine build: PASS'
+          echo "LD_LIBRARY_PATH=$BLADE_LD_LIBRARY_PATH:$GITHUB_WORKSPACE/vendor/blade/lib" >> "$GITHUB_ENV"
+          echo 'Blade engine build + runtime linkage preflight: PASS'
           echo 'Disclosure: the Blade install template is locally parameterized for this runner prefix; vendor/blade source files are not changed.'
       - name: Configure optional reference/data banks
         shell: bash
