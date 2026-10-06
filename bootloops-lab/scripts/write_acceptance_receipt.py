@@ -52,7 +52,6 @@ def main() -> int:
     result_path = Path(args.result).resolve()
     out_path = Path(args.out).resolve()
 
-    expected_ref = json.loads(json.dumps({}))  # keep failure mode explicit below
     import yaml
     expected_ref = str((yaml.safe_load(REGISTRY.read_text(encoding="utf-8")) or {}).get("bootloops_ref", ""))
     actual_ref = git(root, "rev-parse", "HEAD")
