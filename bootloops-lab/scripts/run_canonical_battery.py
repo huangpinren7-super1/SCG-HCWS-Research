@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -23,7 +24,7 @@ CANONICAL_PACKAGE_COUNT = 49
 ACCEPTED = {"PASS", "REFUSED (by design)"}
 
 
-def run_group(root: Path, packages: list[str], timeout: int, label: str, par: int) -> tuple[int, dict]:
+def run_group(root: Path, packages: list[str], timeout: int, label: str, par: int, env: dict[str, str]) -> tuple[int, dict]:
     result_path = root / "selftest_results.json"
     try:
         result_path.unlink()
@@ -40,7 +41,7 @@ def run_group(root: Path, packages: list[str], timeout: int, label: str, par: in
         "--timeout",
         str(timeout),
     ]
-    rc = subprocess.run(cmd, cwd=root, check=False).returncode
+    rc = subprocess.run(cmd, cwd=root, env=env, check=False).returncode
     if not result_path.is_file():
         print(f"{label}: selftest_results.json was not produced", file=sys.stderr, flush=True)
         return rc or 1, {}
@@ -76,13 +77,25 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="bootloops-battery-") as td:
         tmp = Path(td)
+        shim_dir = tmp / "python-shims"
+        shim_dir.mkdir()
+        for name in ("python", "python3"):
+            shim = shim_dir / name
+            shim.write_text(
+                "#!/usr/bin/env bash\n"
+                f'exec {json.dumps(sys.executable)} "$@"\n',
+                encoding="utf-8",
+            )
+            shim.chmod(0o755)
+        child_env = dict(os.environ)
+        child_env["PATH"] = f"{shim_dir}:{child_env.get('PATH', '')}"
 
         for label, group, timeout in (
             ("standard", standard, args.standard_timeout),
             ("dogtag-exception", ["dogtag"], args.dogtag_timeout),
             ("abacus-exception", ["abacus"], args.abacus_timeout),
         ):
-            rc, data = run_group(root, group, timeout, label, args.par)
+            rc, data = run_group(root, group, timeout, label, args.par, child_env)
             merged.update(data)
             if rc != 0:
                 failures.append(f"{label}: upstream run_selftests exited {rc}")
