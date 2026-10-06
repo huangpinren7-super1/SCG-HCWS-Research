@@ -127,4 +127,35 @@ def verify_receipt(path: str | Path) -> dict[str, Any]:
 
 
 def verify_job(bootloops_root: str | Path, job_id: str) -> dict[str, Any]:
-    return verify_receipt(safe_job_dir(bootloops_root, job_id) / "receipt.json")
+    job_dir = safe_job_dir(bootloops_root, job_id)
+    out = verify_receipt(job_dir / "receipt.json")
+    try:
+        from .runner import bootloops_fingerprint
+        fp = bootloops_fingerprint(bootloops_root)
+        out["checkout_ref_at_verify"] = fp["actual_ref"]
+        out["worktree_clean_at_verify"] = fp["worktree_clean"]
+        out["checkout_ref_ok_at_verify"] = (
+            out.get("bootloops_ref") is not None
+            and fp["actual_ref"] == out.get("bootloops_ref")
+            and fp["actual_ref"] == fp["expected_ref"]
+        )
+        if not out["checkout_ref_ok_at_verify"]:
+            out["integrity_ok"] = False
+            out["acceptance_ok"] = False
+            out["valid"] = False
+            out.setdefault("errors", []).append(
+                "BootLoops checkout changed or no longer matches the pinned registry"
+            )
+        if not fp["worktree_clean"]:
+            out["integrity_ok"] = False
+            out["acceptance_ok"] = False
+            out["valid"] = False
+            out.setdefault("errors", []).append(
+                "BootLoops worktree is dirty at verification time"
+            )
+    except Exception as exc:
+        out["integrity_ok"] = False
+        out["acceptance_ok"] = False
+        out["valid"] = False
+        out.setdefault("errors", []).append(f"independent checkout verification failed: {exc}")
+    return out
