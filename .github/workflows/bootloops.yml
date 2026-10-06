@@ -190,6 +190,13 @@ jobs:
           set -euo pipefail
           python "$GITHUB_WORKSPACE/bootloops-lab/scripts/run_canonical_battery.py"             --root .             --par 4             --standard-timeout "$BOOTLOOPS_STANDARD_TIMEOUT"             --dogtag-timeout "$BOOTLOOPS_DOGTAG_TIMEOUT"             --abacus-timeout "$BOOTLOOPS_ABACUS_TIMEOUT" | tee bootloops-lab-selftest.log
           test -f selftest_results.json
+      - name: Write acceptance provenance receipt
+        if: always()
+        run: |
+          set +e
+          python bootloops-lab/scripts/write_acceptance_receipt.py             --root vendor/bootloops             --result vendor/bootloops/selftest_results.json             --out bootloops-lab-acceptance-receipt.json             --research-ref "$GITHUB_SHA"             --ci-run-id "$GITHUB_RUN_ID"             --par 4             --standard-timeout "$BOOTLOOPS_STANDARD_TIMEOUT"             --dogtag-timeout "$BOOTLOOPS_DOGTAG_TIMEOUT"             --abacus-timeout "$BOOTLOOPS_ABACUS_TIMEOUT"
+          exit 0
+
       - name: Check expected baseline
         run: |
           set -euo pipefail
@@ -224,4 +231,5 @@ jobs:
             vendor/bootloops/selftest_results.json
             vendor/bootloops/bootloops-lab-selftest.log
             bootloops-lab-acceptance-summary.md
+            bootloops-lab-acceptance-receipt.json
             bootloops-pip-freeze.txt

@@ -20,7 +20,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-ACCEPTED = {"PASS", "REFUSED (by design)"}
+CANONICAL_PACKAGE_COUNT = 49\nACCEPTED = {"PASS", "REFUSED (by design)"}
 
 
 def run_group(root: Path, packages: list[str], timeout: int, label: str, par: int) -> tuple[int, dict]:
