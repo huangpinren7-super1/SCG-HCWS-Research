@@ -43,6 +43,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install system prerequisite for locked Python layer
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pari-gp libpari-dev
       - name: Install canonical locked Python layer
         run: |
           set -euo pipefail
