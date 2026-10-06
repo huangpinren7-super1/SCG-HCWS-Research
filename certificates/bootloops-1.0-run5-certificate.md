@@ -12,7 +12,7 @@
 - Artifact ID: `11400509437`
 - Artifact ZIP SHA-256: `51363fd943d18b226df9848bd82c067520ff67d664f823bfb6389d5373656690`
 - Extracted `selftest_results.json` SHA-256: `02e1913536f0e808d5a0ceaf5798615e6c0589dce1e004688d5d03617e532b10`
-- Raw result path: `certificates/historical/bootloops-1.0-run5-selftest_results.json` (the exact historical JSON should be preserved here when repository archival is performed)
+- Raw result path: `certificates/historical/bootloops-1.0-run5-selftest_results.json`
 
 ## Result
 
