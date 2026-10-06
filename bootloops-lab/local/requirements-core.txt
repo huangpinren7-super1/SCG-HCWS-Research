@@ -13,4 +13,4 @@ msprime
 tskit
 moments-popgen
 pysecdec==1.6.6
-pytest
+pytestjsonschema
