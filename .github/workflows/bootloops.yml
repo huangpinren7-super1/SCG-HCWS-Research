@@ -16,10 +16,13 @@ on:
       - ".github/workflows/bootloops.yml"
       - "bootloops-lab/**"
       - "experiments/**"
-      - "certificates/**"
 
 permissions:
   contents: read
+
+concurrency:
+  group: bootloops-acceptance
+  cancel-in-progress: true
 
 env:
   PYTHONUNBUFFERED: "1"
