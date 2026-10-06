@@ -11,7 +11,7 @@ from .verify import verify_job
 
 def fake(root: Path, writes: bool) -> Path:
     (root/"tools"/"fake").mkdir(parents=True)
-    (root/"tools"/"README.md").write_text("| fake/ | fixture | selftest |\n", encoding="utf-8")
+    (root/"tools"/"README.md").write_text("| `fake/` | fixture | selftest |\n", encoding="utf-8")
     (root/"tools"/"BATTERIES.json").write_text(
         json.dumps({"fake": {"cmd": "python3 -B tools/fake/test.py", "cwd": "root"}}),
         encoding="utf-8",
