@@ -138,9 +138,21 @@ jobs:
           while IFS= read -r project; do
             dir=$(dirname "$project")
             echo "[Julia instantiate] $dir"
-            julia --project="$dir" -e 'using Pkg; Pkg.instantiate()'
+            ok=0
+            for attempt in 1 2 3; do
+              echo "  attempt=$attempt"
+              if JULIA_PKG_SERVER=https://pkg.julialang.org                  julia --project="$dir" -e 'using Pkg; Pkg.instantiate()'; then
+                ok=1
+                break
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                echo "  instantiate failed; retrying after transient registry/artifact failure"
+                sleep 5
+              fi
+            done
+            test "$ok" -eq 1
           done < <(find vendor/bootloops/tools -name Project.toml -print | sort)
-          echo 'Julia manifest preflight: PASS'
+          echo 'Julia manifest preflight: PASS (all projects instantiated on an explicit 3-attempt retry budget)'
       - name: Build BootLoops Blade engine
         env:
           BLADE_REF: '1013a7578a0f71783ab141f680a17115b3b88fe5'
