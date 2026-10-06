@@ -3,7 +3,11 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PY="${BOOTLOOPS_VENV:-$ROOT/.venv}/bin/python"
-[ -x "$PY" ] || PY=python3
+if [ ! -x "$PY" ]; then
+  echo "Resident Python venv missing: $PY" >&2
+  echo "Run bootloops-lab/local/bootstrap.sh first." >&2
+  exit 2
+fi
 
 if [ -n "${BOOTLOOPS_ROOT:-}" ]; then
   BL="$BOOTLOOPS_ROOT"
@@ -21,6 +25,9 @@ echo "Python: $($PY --version 2>&1)"
 from importlib.metadata import version
 import importlib
 import sys
+
+if sys.version_info[:2] != (3, 12):
+    raise SystemExit(f"resident Python must be 3.12.x, got {sys.version.split()[0]}")
 
 expected = {
     "pip": "26.2.1",
