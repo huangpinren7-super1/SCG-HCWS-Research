@@ -2,15 +2,6 @@ name: BootLoops-Lab Infrastructure Smoke
 
 on:
   pull_request:
-    paths:
-      - ".github/workflows/**"
-      - "bootloops_lab/**"
-      - "gateway/**"
-      - "bootloops-lab/**"
-      - "experiments/**"
-      - "certificates/**"
-      - "schemas/**"
-      - "reference/**"
   push:
     branches: [main]
     paths:
