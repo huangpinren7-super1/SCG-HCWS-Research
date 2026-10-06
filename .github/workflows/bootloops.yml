@@ -1,0 +1,118 @@
+name: BootLoops Acceptance Battery
+
+on:
+  workflow_dispatch:
+    inputs:
+      bootloops_ref:
+        description: "BootLoops commit SHA"
+        required: false
+        default: "66b680ce742e654cfe86da4f072a69061fe182b1"
+      timeout:
+        description: "Per-package battery timeout (seconds)"
+        required: false
+        default: "300"
+  push:
+    paths:
+      - ".github/workflows/bootloops.yml"
+      - "bootloops-lab/**"
+      - "experiments/**"
+      - "certificates/**"
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: "1"
+  BOOTLOOPS_REF: ${{ github.event.inputs.bootloops_ref || '66b680ce742e654cfe86da4f072a69061fe182b1' }}
+  BOOTLOOPS_TIMEOUT: ${{ github.event.inputs.timeout || '300' }}
+
+jobs:
+  acceptance:
+    name: BootLoops 49-package acceptance battery
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout research lab
+        uses: actions/checkout@v4
+      - name: Checkout pinned BootLoops
+        uses: actions/checkout@v4
+        with:
+          repository: BootLoops-ai/bootloops
+          ref: ${{ env.BOOTLOOPS_REF }}
+          path: vendor/bootloops
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Set up Julia
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: "1.11"
+      - name: Install system prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential gfortran pkg-config libgmp-dev libmpfr-dev libmpc-dev pari-gp libpari-dev
+      - name: Install Python scientific stack
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install mpmath sympy numpy scipy python-flint gmpy2 pyyaml networkx dynesty cypari2 msprime tskit moments-popgen pytest
+      - name: Verify scientific stack
+        run: |
+          python - <<'PY'
+          import mpmath, sympy, numpy, scipy, flint, gmpy2, yaml, networkx, dynesty, cypari2, msprime, tskit
+          print("scientific core imports: PASS")
+          print("mpmath", mpmath.__version__)
+          print("sympy", sympy.__version__)
+          print("numpy", numpy.__version__)
+          print("scipy", scipy.__version__)
+          print("python-flint", flint.__version__)
+          PY
+      - name: Instantiate Julia environments
+        working-directory: vendor/bootloops
+        run: |
+          set +e
+          find tools upgrades -name Project.toml -print0 | while IFS= read -r -d '' f; do
+            d="$(dirname "$f")"
+            echo "::group::Julia instantiate $d"
+            (cd "$d" && julia --project=. -e 'using Pkg; Pkg.instantiate()')
+            echo "exit=$?"
+            echo "::endgroup::"
+          done
+      - name: Run canonical 49-package acceptance battery
+        working-directory: vendor/bootloops
+        continue-on-error: true
+        run: |
+          python run_selftests.py --par 8 --timeout "$BOOTLOOPS_TIMEOUT" | tee bootloops-lab-selftest.log
+          test -f selftest_results.json
+      - name: Generate acceptance report
+        if: always()
+        run: |
+          if [ -f vendor/bootloops/selftest_results.json ]; then
+            python bootloops-lab/scripts/summarize_selftests.py vendor/bootloops/selftest_results.json | tee bootloops-lab-acceptance-summary.md
+          else
+            printf '%s\n' '# BootLoops-Lab acceptance summary' '' 'selftest_results.json was not produced.' | tee bootloops-lab-acceptance-summary.md
+          fi
+      - name: Publish job summary
+        if: always()
+        run: |
+          cat bootloops-lab-acceptance-summary.md >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo
+            echo "## Environment"
+            echo "- BootLoops ref: `$BOOTLOOPS_REF`"
+            echo "- Runner: Ubuntu 24.04"
+            echo "- Python: $(python --version)"
+            echo "- Julia: $(julia --version)"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload acceptance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootloops-acceptance-${{ github.run_number }}
+          if-no-files-found: warn
+          path: |
+            vendor/bootloops/selftest_results.json
+            vendor/bootloops/bootloops-lab-selftest.log
+            bootloops-lab-acceptance-summary.md
