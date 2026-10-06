@@ -121,6 +121,7 @@ def verify_receipt(path: str | Path) -> dict[str, Any]:
         "valid": integrity_ok and acceptance_ok,
         "job_id": record.get("job_id"),
         "package": record.get("package"),
+        "bootloops_ref": record.get("bootloops_ref"),
         "status": status,
         "errors": errors,
     }
