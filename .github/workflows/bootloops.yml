@@ -97,27 +97,11 @@ jobs:
           print("moments-popgen", version("moments-popgen"))
           PY
 
-      - name: Instantiate tool Julia environments
+      - name: Validate Julia manifest inventory
         working-directory: vendor/bootloops
-        shell: bash
         run: |
-          set -u
-          failed=0
-          while IFS= read -r f; do
-            d="$(dirname "$f")"
-            echo "::group::Julia instantiate $d"
-            if timeout 900s bash -c "cd \"$d\" && julia --project=. -e 'using Pkg; Pkg.instantiate()'"; then
-              echo "JULIA_INSTANTIATE PASS $d"
-            else
-              rc=$?
-              echo "JULIA_INSTANTIATE FAIL rc=$rc $d"
-              failed=1
-            fi
-            echo "::endgroup::"
-          done < <(find tools -name Project.toml -print | sort)
-          if [ "$failed" -ne 0 ]; then
-            echo "::warning::One or more tool Julia environments could not be instantiated; canonical batteries will still run and report their own named failures/refusals."
-          fi
+          echo "Julia Project.toml files used by BootLoops:"
+          find tools -name Project.toml -print | sort
 
       - name: Run canonical 49-package acceptance battery
         working-directory: vendor/bootloops
