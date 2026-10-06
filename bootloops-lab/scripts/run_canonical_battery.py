@@ -20,7 +20,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-CANONICAL_PACKAGE_COUNT = 49\nACCEPTED = {"PASS", "REFUSED (by design)"}
+CANONICAL_PACKAGE_COUNT = 49
+ACCEPTED = {"PASS", "REFUSED (by design)"}
 
 
 def run_group(root: Path, packages: list[str], timeout: int, label: str, par: int) -> tuple[int, dict]:
@@ -64,6 +65,10 @@ def main() -> int:
     root = Path(args.root).resolve()
     manifest = json.loads((root / "tools" / "BATTERIES.json").read_text(encoding="utf-8"))
     packages = sorted(manifest)
+    if len(packages) != CANONICAL_PACKAGE_COUNT:
+        raise RuntimeError(
+            f"canonical manifest drift: expected {CANONICAL_PACKAGE_COUNT} packages, got {len(packages)}"
+        )
     exceptions = {"abacus": args.abacus_timeout, "dogtag": args.dogtag_timeout}
     standard = [p for p in packages if p not in exceptions]
 

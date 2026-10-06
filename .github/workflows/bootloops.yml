@@ -193,9 +193,17 @@ jobs:
       - name: Write acceptance provenance receipt
         if: always()
         run: |
-          set +e
-          python bootloops-lab/scripts/write_acceptance_receipt.py             --root vendor/bootloops             --result vendor/bootloops/selftest_results.json             --out bootloops-lab-acceptance-receipt.json             --research-ref "$GITHUB_SHA"             --ci-run-id "$GITHUB_RUN_ID"             --par 4             --standard-timeout "$BOOTLOOPS_STANDARD_TIMEOUT"             --dogtag-timeout "$BOOTLOOPS_DOGTAG_TIMEOUT"             --abacus-timeout "$BOOTLOOPS_ABACUS_TIMEOUT"
-          exit 0
+          set -euo pipefail
+          python bootloops-lab/scripts/write_acceptance_receipt.py \
+            --root vendor/bootloops \
+            --result vendor/bootloops/selftest_results.json \
+            --out bootloops-lab-acceptance-receipt.json \
+            --research-ref "$GITHUB_SHA" \
+            --ci-run-id "$GITHUB_RUN_ID" \
+            --par 4 \
+            --standard-timeout "$BOOTLOOPS_STANDARD_TIMEOUT" \
+            --dogtag-timeout "$BOOTLOOPS_DOGTAG_TIMEOUT" \
+            --abacus-timeout "$BOOTLOOPS_ABACUS_TIMEOUT"
 
       - name: Check expected baseline
         run: |
