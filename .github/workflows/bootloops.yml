@@ -82,6 +82,7 @@ jobs:
       - name: Verify scientific stack
         run: |
           python - <<'PY'
+          from importlib.metadata import version
           import mpmath, sympy, numpy, scipy, flint, gmpy2, yaml, networkx, dynesty, cypari2, msprime, tskit
           print("scientific core imports: PASS")
           print("mpmath", mpmath.__version__)
@@ -90,7 +91,10 @@ jobs:
           print("scipy", scipy.__version__)
           print("python-flint", flint.__version__)
           print("gmpy2", gmpy2.version())
-          print("cypari2", cypari2.__version__)
+          print("cypari2", version("cypari2"))
+          print("msprime", version("msprime"))
+          print("tskit", version("tskit"))
+          print("moments-popgen", version("moments-popgen"))
           PY
 
       - name: Instantiate Julia environments
@@ -133,7 +137,7 @@ jobs:
             echo "- Python: $(python --version)"
             echo "- Julia: $(julia --version)"
             echo "- python-flint: $(python -c 'import flint; print(flint.__version__)')"
-            echo "- cypari2: $(python -c 'import cypari2; print(cypari2.__version__)')"
+            echo "- cypari2: $(python -c 'from importlib.metadata import version; print(version("cypari2"))')"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload acceptance artifacts
