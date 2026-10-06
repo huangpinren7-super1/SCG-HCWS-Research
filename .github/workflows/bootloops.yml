@@ -106,28 +106,6 @@ jobs:
           import sage.all, ore_algebra
           print('SageMath + ore_algebra: PASS')
           PY
-      - name: Install canonical Python command shims
-        run: |
-          set -euo pipefail
-          SHIM_DIR="$RUNNER_TEMP/research-python-shims"
-          mkdir -p "$SHIM_DIR"
-          printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$RESEARCH_PYTHON" > "$SHIM_DIR/python"
-          cp "$SHIM_DIR/python" "$SHIM_DIR/python3"
-          chmod 755 "$SHIM_DIR/python" "$SHIM_DIR/python3"
-          echo "PATH=$SHIM_DIR:$(dirname "$RESEARCH_PYTHON"):$PATH" >> "$GITHUB_ENV"
-          echo "RESEARCH_PYTHON_SHIM_DIR=$SHIM_DIR" >> "$GITHUB_ENV"
-
-      - name: Verify canonical Python resolution
-        run: |
-          set -euo pipefail
-          /usr/bin/env PATH="$RESEARCH_PYTHON_SHIM_DIR:$(dirname "$RESEARCH_PYTHON"):$PATH" /usr/bin/which python3
-          /usr/bin/env PATH="$RESEARCH_PYTHON_SHIM_DIR:$(dirname "$RESEARCH_PYTHON"):$PATH" /usr/bin/which python
-          /bin/sh -c 'python3 -c "import sys; print(sys.executable)"'
-          /bin/sh -c 'python -c "import sys; print(sys.executable)"'
-          /bin/sh -c 'test "$(python3 -c "import sys; print(sys.executable)")" = "$RESEARCH_PYTHON"'
-          /bin/sh -c 'test "$(python -c "import sys; print(sys.executable)")" = "$RESEARCH_PYTHON"'
-          echo "Python command resolution: PASS"
-
       - name: Prepare Oscar/JSON Julia environment for dipstick
         run: |
           set -euo pipefail
