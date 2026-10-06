@@ -3,15 +3,6 @@ name: BootLoops Acceptance Battery
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - '.github/workflows/**'
-      - 'bootloops-lab/**'
-      - 'bootloops_lab/**'
-      - 'gateway/**'
-      - 'experiments/**'
-      - 'certificates/**'
-      - 'schemas/**'
-      - 'reference/**'
   push:
     branches: [main]
     paths:
