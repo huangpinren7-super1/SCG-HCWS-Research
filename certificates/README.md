@@ -2,7 +2,7 @@
 
 This directory stores **immutable, provenance-addressed computational evidence**. Historical records are never silently rewritten into current acceptance results.
 
-- `bootloops-1.0-run5-certificate.*` — renamed semantically in-place as a **historical superseded Run #5 record**; it contains a real `abacus` FAIL and preserves that fact.
+- `bootloops-1.0-run5-historical-record.*` — renamed semantically in-place as a **historical superseded Run #5 record**; it contains a real `abacus` FAIL and preserves that fact.
 - `bootloops-lab/config/expected-selftests.json` — current machine-readable baseline source. It is `PROVISIONAL` until a matching Python 3.12 / Julia 1.11 / par=4 run passes and it is explicitly promoted to `CONFIRMED`.
 - `experiments/toolchain_truth/` — pre-research truth-injected benchmark used to validate the computational substrate and to constrain the research mapping claims.
 
