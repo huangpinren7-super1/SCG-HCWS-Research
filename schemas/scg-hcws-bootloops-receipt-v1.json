@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SCG-HCWS BootLoops Receipt v1",
+  "type": "object",
+  "required": ["schema", "job_id", "package", "verification_class", "status", "returncode", "timeout_seconds", "elapsed_seconds", "stdout_sha256"],
+  "properties": {
+    "schema": {"const": "scg-hcws-bootloops-receipt-v1"},
+    "job_id": {"type": "string", "minLength": 8},
+    "package": {"type": "string", "minLength": 1},
+    "verification_class": {"type": "string"},
+    "status": {"type": "string"},
+    "returncode": {"type": "integer"},
+    "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 1200},
+    "elapsed_seconds": {"type": "number", "minimum": 0},
+    "stdout_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,42 @@
+schema: scg-hcws-gateway-registry-v1
+bootloops_ref: 66b680ce742e654cfe86da4f072a69061fe182b1
+default_timeout: 300
+max_timeout: 1200
+
+tools:
+  annihilator:
+    lane: exact-structure
+  ansatzer:
+    lane: exact-structure
+  rankscreen:
+    lane: exact-linear
+  winnow:
+    lane: exact-linear
+  ratfit:
+    lane: reconstruction
+  lockpick:
+    lane: integer-relation
+  vopclose:
+    lane: closure
+  dipstick:
+    lane: triage
+  landau-alphabet:
+    lane: singularity-geometry
+  baller:
+    lane: certified-numeric
+  eras:
+    lane: interval-certification
+  nestor:
+    lane: certified-quadrature
+  longhand:
+    lane: independent-oracle
+  gpl-eval:
+    lane: high-precision-evaluator
+  holonomic:
+    lane: sage-dfinite
+  gatekeeper:
+    lane: evidence-integrity
+  trust:
+    lane: evidence-integrity
+  emitall:
+    lane: reproducibility

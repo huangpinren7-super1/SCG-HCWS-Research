@@ -1,0 +1,9 @@
+.venv/
+.bootloops-lab/
+bootloops-lab/runs/
+bootloops-lab/run.lock
+bootloops-lab/local/environment.local
+vendor/bootloops/
+vendor/blade/
+**/__pycache__/
+*.pyc

@@ -1,0 +1,67 @@
+name: BootLoops-Lab Infrastructure Smoke
+
+on:
+  push:
+    paths:
+      - "bootloops_lab/**"
+      - "gateway/**"
+      - "bootloops-lab/local/**"
+      - "reference/**"
+      - ".github/workflows/lab-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootloops-lab-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout pinned BootLoops
+        uses: actions/checkout@v4
+        with:
+          repository: BootLoops-ai/bootloops
+          ref: 66b680ce742e654cfe86da4f072a69061fe182b1
+          path: vendor/bootloops
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install interface dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml pytest
+
+      - name: Static catalog/interface smoke
+        run: |
+          python -m pytest bootloops_lab gateway -q
+          python -m bootloops_lab.cli --bootloops-root vendor/bootloops catalog > /tmp/catalog.json
+          python - <<'PY'
+          import json
+          d=json.load(open("/tmp/catalog.json"))
+          assert len(d) >= 49
+          print("catalog entries:", len(d))
+          print("interface smoke: PASS")
+          PY
+
+      - name: Gateway import smoke
+        run: |
+          python - <<'PY'
+          import gateway
+          import bootloops_lab
+          print("gateway import: PASS")
+          print("bootloops_lab import: PASS")
+          PY
+
+      - name: Shell syntax smoke
+        run: |
+          bash -n bootloops-lab/local/bootstrap.sh
+          echo "bootstrap shell syntax: PASS"

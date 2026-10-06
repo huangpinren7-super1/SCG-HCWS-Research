@@ -1,0 +1,26 @@
+schema: scg-hcws-resident-profile-v1
+purpose: frequently used local BootLoops layer for SCG-HCWS
+
+tools:
+  - annihilator
+  - ansatzer
+  - baller
+  - dipstick
+  - dogtag
+  - eras
+  - gatekeeper
+  - geotriage
+  - gpl-eval
+  - landau-alphabet
+  - lockpick
+  - longhand
+  - nestor
+  - qinvert
+  - rankscreen
+  - ratfit
+  - seedling
+  - trust
+  - vopclose
+  - wayfinder
+  - winnow
+  - cosmoflow

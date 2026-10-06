@@ -1,0 +1,97 @@
+name: BootLoops Abacus Rescue
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/abacus-rescue.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootloops-abacus-rescue
+  cancel-in-progress: true
+
+env:
+  BOOTLOOPS_REF: '66b680ce742e654cfe86da4f072a69061fe182b1'
+  ABACUS_TIMEOUT: '1200'
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  abacus:
+    name: Abacus acceptance (extended timeout)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout pinned BootLoops
+        uses: actions/checkout@v4
+        with:
+          repository: BootLoops-ai/bootloops
+          ref: 66b680ce742e654cfe86da4f072a69061fe182b1
+          path: vendor/bootloops
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.11'
+
+      - name: Install Abacus prerequisites
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential g++ gfortran pkg-config \
+            libgmp-dev libmpfr-dev libmpc-dev \
+            pari-gp pari-doc perl libpari-dev libflint-dev
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install mpmath sympy numpy scipy python-flint==0.9.0 gmpy2 pyyaml networkx dynesty cypari2==2.2.2 pytest
+
+      - name: Run Abacus only with 1200s timeout
+        working-directory: vendor/bootloops
+        continue-on-error: true
+        run: |
+          python run_selftests.py abacus --timeout "$ABACUS_TIMEOUT" | tee abacus-rescue.log
+          test -f selftest_results.json
+          python - <<'PY'
+          import json
+          d=json.load(open('selftest_results.json'))
+          print(json.dumps(d.get('abacus', d), indent=2))
+          PY
+
+      - name: Publish Abacus result
+        if: always()
+        run: |
+          echo '# Abacus rescue run' >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo "- BootLoops ref: $BOOTLOOPS_REF" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Timeout: $ABACUS_TIMEOUT s" >> "$GITHUB_STEP_SUMMARY"
+          echo '- Runner: Ubuntu 24.04 / Python 3.11 / Julia 1.11' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f vendor/bootloops/selftest_results.json ]; then
+            python - <<'PY' > abacus-rescue-summary.md
+          import json
+          d=json.load(open('vendor/bootloops/selftest_results.json'))
+          print('# Abacus rescue result')
+          print()
+          print(json.dumps(d.get('abacus', d), indent=2))
+          PY
+            cat abacus-rescue-summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload Abacus evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootloops-abacus
+          if-no-files-found: warn
+          path: |
+            vendor/bootloops/selftest_results.json
+            vendor/bootloops/abacus-rescue.log
+            abacus-rescue-summary.md

@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scg-hcws-gateway"
+version = "0.1.0"
+description = "Thin local gateway between SCG-HCWS and BootLoops."
+requires-python = ">=3.11"
+dependencies = ["pyyaml"]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.13,<2"]

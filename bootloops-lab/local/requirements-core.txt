@@ -1,0 +1,16 @@
+# Common local scientific layer
+mpmath
+sympy
+numpy
+scipy
+python-flint==0.9.0
+gmpy2
+pyyaml
+networkx
+dynesty
+cypari2==2.2.2
+msprime
+tskit
+moments-popgen
+pysecdec==1.6.6
+pytest
