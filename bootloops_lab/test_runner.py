@@ -36,7 +36,7 @@ def fake(root: Path, writes: bool) -> Path:
 
 def bind_test_registry(bl: Path, monkeypatch) -> None:
     ref = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=bl, text=True).strip()
-    reg = bl/"registry.yaml"
+    reg = bl.parent/"registry.yaml"
     reg.write_text(f"bootloops_ref: {ref}\n", encoding="utf-8")
     monkeypatch.setattr(runner, "REGISTRY_PATH", reg)
     monkeypatch.setattr(verify, "REGISTRY_PATH", reg)
