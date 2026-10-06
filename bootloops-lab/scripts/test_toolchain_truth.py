@@ -141,12 +141,10 @@ def run_linear_backends(bootloops_root: Path, name: str, rows: list[dict[int, Fr
     if rank_q != expected_rank:
         raise AssertionError(f"{name}: exact-Q rank {rank_q} != planted {expected_rank}")
 
-    rows_all = [
-        (f"{name}:eq{idx}", row, Fraction(0))
-        for idx, row in enumerate(rows)
-    ]
+    rows_all = [(f"{name}:eq{idx}", row, Fraction(0)) for idx, row in enumerate(rows)]
+    screen_input = [(row, rhs) for _, row, rhs in rows_all]
     verdict = rank_screen.screen_rows(
-        rows,
+        screen_input,
         [lab for lab, _, _ in rows_all],
         nvars,
         k=2,
