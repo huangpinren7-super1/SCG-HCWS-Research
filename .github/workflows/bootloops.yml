@@ -106,11 +106,15 @@ jobs:
           import sage.all, ore_algebra
           print('SageMath + ore_algebra: PASS')
           PY
-      - name: Put research Python first on PATH
+      - name: Install canonical Python command shims
         run: |
           set -euo pipefail
-          RESEARCH_PYTHON_DIR="$(dirname "$RESEARCH_PYTHON")"
-          echo "PATH=$RESEARCH_PYTHON_DIR:$PATH" >> "$GITHUB_ENV"
+          SHIM_DIR="$RUNNER_TEMP/research-python-shims"
+          mkdir -p "$SHIM_DIR"
+          ln -sf "$RESEARCH_PYTHON" "$SHIM_DIR/python"
+          ln -sf "$RESEARCH_PYTHON" "$SHIM_DIR/python3"
+          echo "PATH=$SHIM_DIR:$(dirname "$RESEARCH_PYTHON"):$PATH" >> "$GITHUB_ENV"
+          echo "RESEARCH_PYTHON_SHIM_DIR=$SHIM_DIR" >> "$GITHUB_ENV"
 
       - name: Verify canonical Python resolution
         run: |
@@ -121,10 +125,10 @@ jobs:
           printf 'python3 -> %s\npython  -> %s\nexpected -> %s\n' "$actual3" "$actual" "$RESEARCH_PYTHON"
           test "$actual3" = "$RESEARCH_PYTHON"
           test "$actual" = "$RESEARCH_PYTHON"
+          test "$(command -v python3)" = "$RESEARCH_PYTHON_SHIM_DIR/python3"
+          test "$(command -v python)" = "$RESEARCH_PYTHON_SHIM_DIR/python"
           python3 --version
           python --version
-          command -v python3
-          command -v python
 
       - name: Prepare Oscar/JSON Julia environment for dipstick
         run: |
