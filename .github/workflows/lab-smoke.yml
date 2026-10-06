@@ -14,6 +14,8 @@ on:
       - "schemas/**"
       - "reference/**"
   workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
 
 permissions:
   contents: read
@@ -41,10 +43,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install interface dependencies
+      - name: Install canonical locked Python layer
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install pyyaml pytest jsonschema numpy python-flint
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check -r bootloops-lab/local/requirements-ci.txt
 
       - name: Static catalog/interface smoke
         run: |
