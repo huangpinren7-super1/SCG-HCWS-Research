@@ -4,33 +4,39 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - '.github/workflows/bootloops.yml'
-      - 'bootloops-lab/config/**'
-      - 'bootloops-lab/scripts/**'
-      - 'bootloops-lab/ENGINE_LANES.md'
-      - 'bootloops-lab/local/**'
+      - '.github/workflows/**'
+      - 'bootloops-lab/**'
+      - 'bootloops_lab/**'
+      - 'gateway/**'
+      - 'experiments/**'
+      - 'certificates/**'
+      - 'schemas/**'
       - 'reference/**'
   push:
     branches: [main]
     paths:
-      - '.github/workflows/bootloops.yml'
-      - 'bootloops-lab/config/**'
-      - 'bootloops-lab/scripts/**'
-      - 'bootloops-lab/ENGINE_LANES.md'
-      - 'bootloops-lab/local/**'
+      - '.github/workflows/**'
+      - 'bootloops-lab/**'
+      - 'bootloops_lab/**'
+      - 'gateway/**'
+      - 'experiments/**'
+      - 'certificates/**'
+      - 'schemas/**'
       - 'reference/**'
 
 permissions:
   contents: read
 
 concurrency:
-  group: bootloops-acceptance
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
   PYTHONUNBUFFERED: '1'
   BOOTLOOPS_REF: '66b680ce742e654cfe86da4f072a69061fe182b1'
-  BOOTLOOPS_TIMEOUT: '1200'
+  BOOTLOOPS_STANDARD_TIMEOUT: '300'
+  BOOTLOOPS_DOGTAG_TIMEOUT: '360'
+  BOOTLOOPS_ABACUS_TIMEOUT: '1200'
 
 jobs:
   acceptance:
@@ -67,7 +73,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential g++ gfortran cmake make pkg-config m4 uuid-dev git unzip wget curl bzip2 libgmp-dev libmpfr-dev libmpc-dev pari-gp pari-doc perl libpari-dev libflint-dev libginac-dev msolve singular
+          sudo apt-get install -y --no-install-recommends build-essential g++ gfortran cmake make pkg-config m4 uuid-dev git unzip wget curl bzip2 ca-certificates libgmp-dev libmpfr-dev libmpc-dev pari-gp pari-doc perl libpari-dev libflint-dev libginac-dev msolve singular
       - name: Verify system mathematics engines
         run: |
           set -euo pipefail
@@ -81,13 +87,22 @@ jobs:
         run: |
           set -euo pipefail
           MINIFORGE="$HOME/miniforge3"
-          if [ ! -x "$MINIFORGE/bin/conda" ]; then curl -L --fail --retry 3 -o "$RUNNER_TEMP/miniforge.sh" 'https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh'; bash "$RUNNER_TEMP/miniforge.sh" -b -p "$MINIFORGE"; fi
+          MINIFORGE_VERSION='26.7.2-0'
+          MINIFORGE_URL="https://github.com/conda-forge/miniforge/releases/download/$MINIFORGE_VERSION/Miniforge3-$MINIFORGE_VERSION-Linux-x86_64.sh"
+          MINIFORGE_SHA256='281b0ac7d550802efc81af633225a5e6116d29ae72f3ab4eae7168c3931a4c05'
+          if [ ! -x "$MINIFORGE/bin/conda" ]; then
+            curl -L --fail --retry 3 -o "$RUNNER_TEMP/miniforge.sh" "$MINIFORGE_URL"
+            echo "$MINIFORGE_SHA256  $RUNNER_TEMP/miniforge.sh" | sha256sum -c -
+            bash "$RUNNER_TEMP/miniforge.sh" -b -p "$MINIFORGE"
+          fi
           "$MINIFORGE/bin/conda" config --system --set channel_priority strict
           "$MINIFORGE/bin/conda" create -y -n sage sage=10.7 python=3.11
-          "$MINIFORGE/envs/sage/bin/sage" -pip install ore_algebra==0.5
+          ORE_ALGEBRA_REF='e823595dfe616622bd359eff5d2e7b7aaa759ffe'
+          "$MINIFORGE/envs/sage/bin/sage" -pip install --no-build-isolation "git+https://github.com/mkauers/ore_algebra.git@$ORE_ALGEBRA_REF"
           echo "$MINIFORGE/envs/sage/bin" >> "$GITHUB_PATH"
           echo "SAGE_HOME=$MINIFORGE/envs/sage" >> "$GITHUB_ENV"
           echo "HOLONOMIC_SAGE=$MINIFORGE/envs/sage/bin/sage" >> "$GITHUB_ENV"
+          echo "ORE_ALGEBRA_REF=$ORE_ALGEBRA_REF" >> "$GITHUB_ENV"
           "$MINIFORGE/envs/sage/bin/sage" --version
           "$MINIFORGE/envs/sage/bin/sage" -python - <<'PY'
           import sage.all, ore_algebra
@@ -115,15 +130,15 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip setuptools wheel
-          python -m pip install mpmath sympy numpy scipy python-flint==0.9.0 gmpy2 pyyaml networkx dynesty cypari2==2.2.2 msprime tskit moments-popgen pytest pysecdec==1.6.6
+          python -m pip install mpmath sympy numpy scipy python-flint==0.9.0 gmpy2 pyyaml jsonschema networkx dynesty cypari2==2.2.2 msprime tskit moments-popgen pytest pysecdec==1.6.6
       - name: Verify Python scientific stack
         run: |
           set -euo pipefail
           python - <<'PY'
           from importlib.metadata import version
-          import sys, mpmath, sympy, numpy, scipy, flint, gmpy2, yaml, networkx, dynesty, cypari2, msprime, tskit
+          import sys, mpmath, sympy, numpy, scipy, flint, gmpy2, yaml, jsonschema, networkx, dynesty, cypari2, msprime, tskit
           print('Python:', sys.version)
-          for pkg in ('python-flint','cypari2','msprime','tskit','moments-popgen','pySecDec'): print(pkg, version(pkg))
+          for pkg in ('python-flint','cypari2','msprime','tskit','moments-popgen','pySecDec','jsonschema'): print(pkg, version(pkg))
           print('scientific core imports: PASS')
           PY
       - name: Preflight every in-repo Julia project
@@ -157,6 +172,7 @@ jobs:
           echo "BLADE_BIN_DIR=$GITHUB_WORKSPACE/vendor/blade/bin" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$FFPREFIX/lib:$GITHUB_WORKSPACE/vendor/blade/lib" >> "$GITHUB_ENV"
           echo 'Blade engine build: PASS'
+          echo 'Disclosure: the Blade install template is locally parameterized for this runner prefix; vendor/blade source files are not changed.'
       - name: Configure optional reference/data banks
         shell: bash
         run: |
@@ -170,7 +186,7 @@ jobs:
         working-directory: vendor/bootloops
         run: |
           set -euo pipefail
-          python run_selftests.py --par 4 --timeout "$BOOTLOOPS_TIMEOUT" | tee bootloops-lab-selftest.log
+          python "$GITHUB_WORKSPACE/bootloops-lab/scripts/run_canonical_battery.py"             --root .             --par 4             --standard-timeout "$BOOTLOOPS_STANDARD_TIMEOUT"             --dogtag-timeout "$BOOTLOOPS_DOGTAG_TIMEOUT"             --abacus-timeout "$BOOTLOOPS_ABACUS_TIMEOUT" | tee bootloops-lab-selftest.log
           test -f selftest_results.json
       - name: Check expected baseline
         run: |
@@ -193,7 +209,8 @@ jobs:
           echo '- Runner: Ubuntu 24.04' >> "$GITHUB_STEP_SUMMARY"
           echo "- Python: $(python --version)" >> "$GITHUB_STEP_SUMMARY"
           echo "- Julia: $(julia --version)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Sage: $(sage --version)" >> "$GITHUB_STEP_SUMMARY"
+          if command -v sage >/dev/null 2>&1; then echo "- Sage: $(sage --version)" >> "$GITHUB_STEP_SUMMARY"; else echo '- Sage: unavailable (setup step did not complete)' >> "$GITHUB_STEP_SUMMARY"; fi
+          echo "- Sage ore_algebra ref: ${ORE_ALGEBRA_REF:-unavailable}" >> "$GITHUB_STEP_SUMMARY"
           echo '- pip freeze captured: bootloops-pip-freeze.txt' >> "$GITHUB_STEP_SUMMARY"
       - name: Upload acceptance artifacts
         if: always()
