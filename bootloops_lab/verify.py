@@ -14,13 +14,16 @@ ALLOWED = {"PASS", "REFUSED (by design)", "FAIL", "PROCESS_TIMEOUT", "PROCESS_ER
 ACCEPTED = {"PASS", "REFUSED (by design)"}
 
 
+REGISTRY_PATH = Path(__file__).resolve().parents[1] / "gateway" / "registry.yaml"
+
+
 def _schema() -> dict[str, Any]:
     path = Path(__file__).resolve().parents[1] / "schemas" / "scg-hcws-bootloops-receipt-v1.json"
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _registry_bootloops_ref() -> str:
-    path = Path(__file__).resolve().parents[1] / "gateway" / "registry.yaml"
+    path = REGISTRY_PATH
     return str((yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("bootloops_ref", ""))
 
 
