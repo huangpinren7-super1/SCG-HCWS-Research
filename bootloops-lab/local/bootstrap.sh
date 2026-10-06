@@ -18,13 +18,18 @@ python3 -m venv "$VENV"
 "$VENV/bin/python" -m pip install --upgrade pip setuptools wheel
 "$VENV/bin/python" -m pip install -r "$REQ"
 
+if [ "${1:-}" = "--with-mcp" ]; then
+  "$VENV/bin/python" -m pip install -r "$ROOT/bootloops-lab/local/requirements-mcp.txt"
+fi
+
 cat > "$ROOT/bootloops-lab/local/environment.local" <<EOF
 export BOOTLOOPS_ROOT="$BL"
+export BOOTLOOPS_VENV="$VENV"
+export BOOTLOOPS_REF="66b680ce742e654cfe86da4f072a69061fe182b1"
 export PATH="$VENV/bin:\$PATH"
 EOF
 
-echo "BootLoops-Lab local resident layer: READY"
-echo "BootLoops: $BL"
-echo "Python venv: $VENV"
 "$VENV/bin/python" -m bootloops_lab.cli --bootloops-root "$BL" catalog >/dev/null
-echo "Catalog probe: PASS"
+"$VENV/bin/python" -m bootloops_lab.cli --bootloops-root "$BL" resident >/dev/null
+echo "BootLoops-Lab resident layer: READY"
+echo "Use --with-mcp to install the optional MCP transport."
