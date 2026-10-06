@@ -1,0 +1,43 @@
+name: Archive Historical Run #5 Evidence
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/archive-run5.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  archive:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Download immutable Run #5 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body -L             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "https://api.github.com/repos/$REPOSITORY/actions/artifacts/11400509437/zip"             -o "$RUNNER_TEMP/run5.zip"
+          unzip -q "$RUNNER_TEMP/run5.zip" -d "$RUNNER_TEMP/run5"
+          src="$RUNNER_TEMP/run5/vendor/bootloops/selftest_results.json"
+          test -f "$src"
+          echo "02e1913536f0e808d5a0ceaf5798615e6c0589dce1e004688d5d03617e532b10  $src" | sha256sum -c -
+
+      - name: Commit exact raw selftest result
+        run: |
+          set -euo pipefail
+          mkdir -p certificates/historical
+          cp "$RUNNER_TEMP/run5/vendor/bootloops/selftest_results.json"             certificates/historical/bootloops-1.0-run5-selftest_results.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add certificates/historical/bootloops-1.0-run5-selftest_results.json
+          git commit -m "Archive exact Run #5 selftest results [skip ci]"
+          git push origin HEAD:main
