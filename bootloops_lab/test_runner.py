@@ -78,7 +78,7 @@ def test_adversarial_receipt_semantics(tmp_path, monkeypatch):
 
     missing = dict(receipt)
     missing.pop("stdout_sha256")
-    missing_path = tmp_path/"missing.json"
+    missing_path = job/"receipt-missing.json"
     missing_path.write_text(json.dumps(missing), encoding="utf-8")
     missing_result = verify.verify_receipt(missing_path)
     assert not missing_result["integrity_ok"]
@@ -92,7 +92,7 @@ def test_adversarial_receipt_semantics(tmp_path, monkeypatch):
     failed["status"] = "FAIL"
     failed["result"] = result["fake"]
     failed["result_sha256"] = verify.sha256_file(job/"selftest_results.json")
-    failed_path = tmp_path/"fail.json"
+    failed_path = job/"receipt-fail.json"
     failed_path.write_text(json.dumps(failed), encoding="utf-8")
     failed_result = verify.verify_receipt(failed_path)
     print("VERIFY_FAILED:", json.dumps(failed_result, sort_keys=True))
