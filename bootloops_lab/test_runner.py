@@ -49,7 +49,7 @@ def test_receipt_verify(tmp_path, monkeypatch):
     rec = run_acceptance("fake", root=str(bl), timeout=30)
     assert rec["status"] == "PASS"
     checked = verify_job(bl, rec["job_id"])
-    assert checked["integrity_ok"]
+    assert checked["integrity_ok"], checked
     assert checked["acceptance_ok"]
     assert checked["valid"]
 
@@ -93,7 +93,7 @@ def test_adversarial_receipt_semantics(tmp_path, monkeypatch):
     failed_path = tmp_path/"fail.json"
     failed_path.write_text(json.dumps(failed), encoding="utf-8")
     failed_result = verify.verify_receipt(failed_path)
-    assert failed_result["integrity_ok"]
+    assert failed_result["integrity_ok"], failed_result
     assert not failed_result["acceptance_ok"]
     assert not failed_result["valid"]
 
