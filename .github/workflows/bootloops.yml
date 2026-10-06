@@ -97,7 +97,7 @@ jobs:
           fi
           "$MINIFORGE/bin/conda" config --system --set channel_priority strict
           "$MINIFORGE/bin/conda" create -y -n sage sage=10.7 python=3.11
-          ORE_ALGEBRA_REF='e823595dfe616622bd359eff5d2e7b7aaa759ffe'
+          ORE_ALGEBRA_REF='e9d5d9515f2e804fbe9a41e0a2652d1467f4386d'
           "$MINIFORGE/envs/sage/bin/sage" -pip install --no-build-isolation "git+https://github.com/mkauers/ore_algebra.git@$ORE_ALGEBRA_REF"
           echo "$MINIFORGE/envs/sage/bin" >> "$GITHUB_PATH"
           echo "SAGE_HOME=$MINIFORGE/envs/sage" >> "$GITHUB_ENV"
