@@ -92,12 +92,34 @@ jobs:
           "$MINIFORGE/envs/sage/bin/sage" -pip install ore_algebra==0.5
           echo "$MINIFORGE/envs/sage/bin" >> "$GITHUB_PATH"
           echo "SAGE_HOME=$MINIFORGE/envs/sage" >> "$GITHUB_ENV"
+          echo "HOLONOMIC_SAGE=$MINIFORGE/envs/sage/bin/sage" >> "$GITHUB_ENV"
           "$MINIFORGE/envs/sage/bin/sage" --version
           "$MINIFORGE/envs/sage/bin/sage" -python - <<'PY'
           import sage.all
           import ore_algebra
           print('SageMath + ore_algebra: PASS')
           PY
+
+      - name: Prepare Oscar/JSON Julia environment for dipstick
+        run: |
+          set -euo pipefail
+          DIPSTICK_PROJECT="$RUNNER_TEMP/dipstick-oscar"
+          rm -rf "$DIPSTICK_PROJECT"
+          mkdir -p "$DIPSTICK_PROJECT"
+          cat > "$DIPSTICK_PROJECT/Project.toml" <<'TOML'
+          name = "DipstickOscar"
+          uuid = "7f4b6f4c-4d2c-4d25-a8d7-5a0d8d5e7b11"
+          version = "0.1.0"
+          [deps]
+          JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+          Oscar = "f1435218-dba5-11e9-1e4d-f1a5fab5fc13"
+          [compat]
+          Oscar = "1.7"
+          julia = "1.11"
+          TOML
+          julia --project="$DIPSTICK_PROJECT" -e 'using Pkg; Pkg.instantiate()'
+          echo "DIPSTICK_JULIA_PROJECT=$DIPSTICK_PROJECT" >> "$GITHUB_ENV"
+          echo 'Dipstick Oscar/JSON project: PASS'
 
       - name: Install Python scientific stack
         run: |
