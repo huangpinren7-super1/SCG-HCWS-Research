@@ -2,13 +2,22 @@ name: BootLoops Acceptance Battery
 
 on:
   workflow_dispatch:
-  push:
+  pull_request:
     paths:
       - '.github/workflows/bootloops.yml'
       - 'bootloops-lab/config/**'
       - 'bootloops-lab/scripts/**'
       - 'bootloops-lab/ENGINE_LANES.md'
-      - 'experiments/**'
+      - 'bootloops-lab/local/**'
+      - 'reference/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/bootloops.yml'
+      - 'bootloops-lab/config/**'
+      - 'bootloops-lab/scripts/**'
+      - 'bootloops-lab/ENGINE_LANES.md'
+      - 'bootloops-lab/local/**'
       - 'reference/**'
 
 permissions:
@@ -30,63 +39,49 @@ jobs:
     timeout-minutes: 360
     steps:
       - name: Checkout research lab
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Checkout pinned BootLoops
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: BootLoops-ai/bootloops
           ref: 66b680ce742e654cfe86da4f072a69061fe182b1
           path: vendor/bootloops
           fetch-depth: 1
-
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: pip
-
       - name: Set up Julia
-        uses: julia-actions/setup-julia@v2
+        uses: julia-actions/setup-julia@4c0cb0fce8556fdb04a90347310e5db8b1f98fb9 # v2
         with:
           version: '1.11'
-
+      - name: Record exact BootLoops checkout
+        run: |
+          set -euo pipefail
+          ACTUAL_BOOTLOOPS_REF=$(git -C vendor/bootloops rev-parse HEAD)
+          test "$ACTUAL_BOOTLOOPS_REF" = "$BOOTLOOPS_REF"
+          echo "BOOTLOOPS_REF_ACTUAL=$ACTUAL_BOOTLOOPS_REF" >> "$GITHUB_ENV"
+          echo "BootLoops checkout: $ACTUAL_BOOTLOOPS_REF"
       - name: Install system mathematics prerequisites
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential g++ gfortran cmake make pkg-config m4 uuid-dev \
-            git unzip wget curl bzip2 \
-            libgmp-dev libmpfr-dev libmpc-dev \
-            pari-gp pari-doc perl libpari-dev \
-            libflint-dev libginac-dev msolve singular
-
+          sudo apt-get install -y --no-install-recommends build-essential g++ gfortran cmake make pkg-config m4 uuid-dev git unzip wget curl bzip2 libgmp-dev libmpfr-dev libmpc-dev pari-gp pari-doc perl libpari-dev libflint-dev libginac-dev msolve singular
       - name: Verify system mathematics engines
         run: |
           set -euo pipefail
-          command -v gp
-          command -v gphelp
-          gp --version
-          command -v msolve
-          msolve --version || true
-          command -v Singular
-          Singular --version || true
-          test -f /usr/include/flint/flint.h
-          test -f /usr/include/ginac/ginac.h
+          command -v gp; command -v gphelp; gp --version
+          command -v msolve; msolve --version || true
+          command -v Singular; Singular --version || true
+          test -f /usr/include/flint/flint.h; test -f /usr/include/ginac/ginac.h
           ldconfig -p | grep -q 'libginac'
           echo 'PARI / FLINT / GiNaC / msolve / Singular: PASS'
-
       - name: Install SageMath 10.7
-        continue-on-error: true
         run: |
           set -euo pipefail
           MINIFORGE="$HOME/miniforge3"
-          if [ ! -x "$MINIFORGE/bin/conda" ]; then
-            curl -L --fail --retry 3 -o "$RUNNER_TEMP/miniforge.sh" \
-              'https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh'
-            bash "$RUNNER_TEMP/miniforge.sh" -b -p "$MINIFORGE"
-          fi
+          if [ ! -x "$MINIFORGE/bin/conda" ]; then curl -L --fail --retry 3 -o "$RUNNER_TEMP/miniforge.sh" 'https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh'; bash "$RUNNER_TEMP/miniforge.sh" -b -p "$MINIFORGE"; fi
           "$MINIFORGE/bin/conda" config --system --set channel_priority strict
           "$MINIFORGE/bin/conda" create -y -n sage sage=10.7 python=3.11
           "$MINIFORGE/envs/sage/bin/sage" -pip install ore_algebra==0.5
@@ -95,17 +90,13 @@ jobs:
           echo "HOLONOMIC_SAGE=$MINIFORGE/envs/sage/bin/sage" >> "$GITHUB_ENV"
           "$MINIFORGE/envs/sage/bin/sage" --version
           "$MINIFORGE/envs/sage/bin/sage" -python - <<'PY'
-          import sage.all
-          import ore_algebra
+          import sage.all, ore_algebra
           print('SageMath + ore_algebra: PASS')
           PY
-
       - name: Prepare Oscar/JSON Julia environment for dipstick
         run: |
           set -euo pipefail
-          DIPSTICK_PROJECT="$RUNNER_TEMP/dipstick-oscar"
-          rm -rf "$DIPSTICK_PROJECT"
-          mkdir -p "$DIPSTICK_PROJECT"
+          DIPSTICK_PROJECT="$RUNNER_TEMP/dipstick-oscar"; rm -rf "$DIPSTICK_PROJECT"; mkdir -p "$DIPSTICK_PROJECT"
           cat > "$DIPSTICK_PROJECT/Project.toml" <<'TOML'
           name = "DipstickOscar"
           uuid = "7f4b6f4c-4d2c-4d25-a8d7-5a0d8d5e7b11"
@@ -120,137 +111,98 @@ jobs:
           julia --project="$DIPSTICK_PROJECT" -e 'using Pkg; Pkg.instantiate()'
           echo "DIPSTICK_JULIA_PROJECT=$DIPSTICK_PROJECT" >> "$GITHUB_ENV"
           echo 'Dipstick Oscar/JSON project: PASS'
-
       - name: Install Python scientific stack
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip setuptools wheel
-          python -m pip install \
-            mpmath sympy numpy scipy \
-            python-flint==0.9.0 gmpy2 pyyaml networkx dynesty \
-            cypari2==2.2.2 msprime tskit moments-popgen pytest \
-            pysecdec==1.6.6
-
+          python -m pip install mpmath sympy numpy scipy python-flint==0.9.0 gmpy2 pyyaml networkx dynesty cypari2==2.2.2 msprime tskit moments-popgen pytest pysecdec==1.6.6
       - name: Verify Python scientific stack
         run: |
           set -euo pipefail
           python - <<'PY'
           from importlib.metadata import version
-          import mpmath, sympy, numpy, scipy, flint, gmpy2, yaml, networkx, dynesty
-          import cypari2, msprime, tskit
+          import sys, mpmath, sympy, numpy, scipy, flint, gmpy2, yaml, networkx, dynesty, cypari2, msprime, tskit
+          print('Python:', sys.version)
+          for pkg in ('python-flint','cypari2','msprime','tskit','moments-popgen','pySecDec'): print(pkg, version(pkg))
           print('scientific core imports: PASS')
-          print('mpmath', mpmath.__version__)
-          print('sympy', sympy.__version__)
-          print('numpy', numpy.__version__)
-          print('scipy', scipy.__version__)
-          print('python-flint', flint.__version__)
-          print('gmpy2', gmpy2.version())
-          print('cypari2', version('cypari2'))
-          print('msprime', version('msprime'))
-          print('tskit', version('tskit'))
-          print('moments-popgen', version('moments-popgen'))
-          print('pySecDec', version('pySecDec'))
           PY
-
+      - name: Preflight every in-repo Julia project
+        run: |
+          set -euo pipefail
+          while IFS= read -r project; do
+            dir=$(dirname "$project")
+            echo "[Julia instantiate] $dir"
+            julia --project="$dir" -e 'using Pkg; Pkg.instantiate()'
+          done < <(find vendor/bootloops/tools -name Project.toml -print | sort)
+          echo 'Julia manifest preflight: PASS'
       - name: Build BootLoops Blade engine
-        id: blade_engine
-        continue-on-error: true
         env:
           BLADE_REF: '1013a7578a0f71783ab141f680a17115b3b88fe5'
           FFLOW_REF: 'b951bf7361643292ae3846383281e5f4626dad78'
         run: |
           set -euo pipefail
-          FFPREFIX="$RUNNER_TEMP/finiteflow"
-          mkdir -p "$RUNNER_TEMP/fflow-src"
-          curl -L --fail --retry 3 -o "$RUNNER_TEMP/fflow.zip" \
-            "https://github.com/peraro/finiteflow/archive/$FFLOW_REF.zip"
+          FFPREFIX="$RUNNER_TEMP/finiteflow"; mkdir -p "$RUNNER_TEMP/fflow-src"
+          curl -L --fail --retry 3 -o "$RUNNER_TEMP/fflow.zip" "https://github.com/peraro/finiteflow/archive/$FFLOW_REF.zip"
           unzip -q "$RUNNER_TEMP/fflow.zip" -d "$RUNNER_TEMP/fflow-src"
           FFDIR="$RUNNER_TEMP/fflow-src/finiteflow-$FFLOW_REF"
           cmake -S "$FFDIR" -B "$FFDIR/build" -DCMAKE_INSTALL_PREFIX="$FFPREFIX"
           cmake --build "$FFDIR/build" --parallel 2
           cmake --install "$FFDIR/build"
           git clone --depth 1 'https://github.com/BootLoops-ai/blade.git' vendor/blade
-          git -C vendor/blade fetch --depth 1 origin "$BLADE_REF"
-          git -C vendor/blade checkout "$BLADE_REF"
+          git -C vendor/blade fetch --depth 1 origin "$BLADE_REF"; git -C vendor/blade checkout "$BLADE_REF"
           sed -i "s|^DFFLOWMLINK_DIR=.*|DFFLOWMLINK_DIR=\"$FFPREFIX\"|" vendor/blade/install.in.txt
           sed -i "s|^DCMAKE_PREFIX_PATH=.*|DCMAKE_PREFIX_PATH=\"/usr;/usr/local;$FFPREFIX\"|" vendor/blade/install.in.txt
-          cmake -S vendor/blade -B vendor/blade/build
-          cmake --build vendor/blade/build --parallel 2
-          cmake --install vendor/blade/build
-          test -x vendor/blade/bin/redg1
-          test -x vendor/blade/bin/fitrel
-          test -x vendor/blade/bin/fflowcli
-          test -x vendor/blade/bin/dumppoints
+          cmake -S vendor/blade -B vendor/blade/build; cmake --build vendor/blade/build --parallel 2; cmake --install vendor/blade/build
+          test -x vendor/blade/bin/redg1; test -x vendor/blade/bin/fitrel; test -x vendor/blade/bin/fflowcli; test -x vendor/blade/bin/dumppoints
           echo "BLADE_BIN_DIR=$GITHUB_WORKSPACE/vendor/blade/bin" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$FFPREFIX/lib:$GITHUB_WORKSPACE/vendor/blade/lib" >> "$GITHUB_ENV"
           echo 'Blade engine build: PASS'
-
       - name: Configure optional reference/data banks
         shell: bash
         run: |
           set -euo pipefail
-          has_payload() {
-            local d="$1"
-            [ -d "$d" ] && find "$d" -type f ! -name README.md -print -quit | grep -q .
-          }
-          if has_payload "$GITHUB_WORKSPACE/reference/clinch"; then
-            echo "CLINCH_REFERENCE_DIR=$GITHUB_WORKSPACE/reference/clinch" >> "$GITHUB_ENV"
-          fi
-          if [ -f "$GITHUB_WORKSPACE/reference/eichler/true.json" ]; then
-            echo "G2KIT_TRUE_JSON=$GITHUB_WORKSPACE/reference/eichler/true.json" >> "$GITHUB_ENV"
-          fi
-          if has_payload "$GITHUB_WORKSPACE/reference/galois"; then
-            echo "GALOIS_CAMPAIGN_BANK=$GITHUB_WORKSPACE/reference/galois" >> "$GITHUB_ENV"
-          fi
-          if has_payload "$GITHUB_WORKSPACE/reference/blade-port"; then
-            echo "BLADE_PORT_ROOT=$GITHUB_WORKSPACE/reference/blade-port" >> "$GITHUB_ENV"
-          fi
-
-      - name: Validate Julia manifest inventory
-        working-directory: vendor/bootloops
-        run: find tools -name Project.toml -print | sort
-
+          has_payload(){ local d="$1"; [ -d "$d" ] && find "$d" -type f ! -name README.md -print -quit | grep -q .; }
+          if has_payload "$GITHUB_WORKSPACE/reference/clinch"; then echo "CLINCH_REFERENCE_DIR=$GITHUB_WORKSPACE/reference/clinch" >> "$GITHUB_ENV"; fi
+          if [ -f "$GITHUB_WORKSPACE/reference/eichler/true.json" ]; then echo "G2KIT_TRUE_JSON=$GITHUB_WORKSPACE/reference/eichler/true.json" >> "$GITHUB_ENV"; fi
+          if has_payload "$GITHUB_WORKSPACE/reference/galois"; then echo "GALOIS_CAMPAIGN_BANK=$GITHUB_WORKSPACE/reference/galois" >> "$GITHUB_ENV"; fi
+          if has_payload "$GITHUB_WORKSPACE/reference/blade-port"; then echo "BLADE_PORT_ROOT=$GITHUB_WORKSPACE/reference/blade-port" >> "$GITHUB_ENV"; fi
       - name: Run canonical 49-package acceptance battery
         working-directory: vendor/bootloops
-        continue-on-error: true
         run: |
-          python run_selftests.py --par 8 --timeout "$BOOTLOOPS_TIMEOUT" | tee bootloops-lab-selftest.log
+          set -euo pipefail
+          python run_selftests.py --par 4 --timeout "$BOOTLOOPS_TIMEOUT" | tee bootloops-lab-selftest.log
           test -f selftest_results.json
-
+      - name: Check expected baseline
+        run: |
+          set -euo pipefail
+          python bootloops-lab/scripts/check_expected_selftests.py vendor/bootloops/selftest_results.json bootloops-lab/config/expected-selftests.json
+      - name: Capture Python environment
+        if: always()
+        run: |
+          python -m pip freeze | sort > bootloops-pip-freeze.txt
       - name: Generate acceptance report
         if: always()
         run: |
-          if [ -f vendor/bootloops/selftest_results.json ]; then
-            python bootloops-lab/scripts/summarize_selftests.py vendor/bootloops/selftest_results.json | tee bootloops-lab-acceptance-summary.md
-          else
-            printf '%s\n' '# BootLoops-Lab acceptance summary' '' 'selftest_results.json was not produced.' | tee bootloops-lab-acceptance-summary.md
-          fi
-
+          if [ -f vendor/bootloops/selftest_results.json ]; then python bootloops-lab/scripts/summarize_selftests.py vendor/bootloops/selftest_results.json | tee bootloops-lab-acceptance-summary.md; else printf '%s\n' '# BootLoops-Lab acceptance summary' '' 'selftest_results.json was not produced.' | tee bootloops-lab-acceptance-summary.md; fi
       - name: Publish job summary
         if: always()
         run: |
-          cat bootloops-lab-acceptance-summary.md >> "$GITHUB_STEP_SUMMARY"
-          echo >> "$GITHUB_STEP_SUMMARY"
+          cat bootloops-lab-acceptance-summary.md >> "$GITHUB_STEP_SUMMARY"; echo >> "$GITHUB_STEP_SUMMARY"
           echo '## Environment' >> "$GITHUB_STEP_SUMMARY"
-          echo "- BootLoops ref: $BOOTLOOPS_REF" >> "$GITHUB_STEP_SUMMARY"
+          echo "- BootLoops ref: $BOOTLOOPS_REF_ACTUAL" >> "$GITHUB_STEP_SUMMARY"
           echo '- Runner: Ubuntu 24.04' >> "$GITHUB_STEP_SUMMARY"
           echo "- Python: $(python --version)" >> "$GITHUB_STEP_SUMMARY"
           echo "- Julia: $(julia --version)" >> "$GITHUB_STEP_SUMMARY"
-          if command -v sage >/dev/null 2>&1; then echo "- Sage: $(sage --version)" >> "$GITHUB_STEP_SUMMARY"; else echo '- Sage: unavailable' >> "$GITHUB_STEP_SUMMARY"; fi
-          echo "- python-flint: $(python -c 'import flint; print(flint.__version__)')" >> "$GITHUB_STEP_SUMMARY"
-          echo "- cypari2: $(python -c 'from importlib.metadata import version; print(version(\"cypari2\"))')" >> "$GITHUB_STEP_SUMMARY"
-          echo "- pySecDec: $(python -c 'from importlib.metadata import version; print(version(\"pySecDec\"))')" >> "$GITHUB_STEP_SUMMARY"
-          if command -v msolve >/dev/null 2>&1; then echo '- msolve: installed' >> "$GITHUB_STEP_SUMMARY"; fi
-          if command -v Singular >/dev/null 2>&1; then echo '- Singular: installed' >> "$GITHUB_STEP_SUMMARY"; fi
-          if [ -x vendor/blade/bin/redg1 ]; then echo '- Blade binaries: PASS' >> "$GITHUB_STEP_SUMMARY"; else echo '- Blade binaries: unavailable' >> "$GITHUB_STEP_SUMMARY"; fi
-
+          echo "- Sage: $(sage --version)" >> "$GITHUB_STEP_SUMMARY"
+          echo '- pip freeze captured: bootloops-pip-freeze.txt' >> "$GITHUB_STEP_SUMMARY"
       - name: Upload acceptance artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: bootloops-acceptance
+          name: bootloops-acceptance-${{ github.run_id }}
           if-no-files-found: warn
           path: |
             vendor/bootloops/selftest_results.json
             vendor/bootloops/bootloops-lab-selftest.log
             bootloops-lab-acceptance-summary.md
+            bootloops-pip-freeze.txt
