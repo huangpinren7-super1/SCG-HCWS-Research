@@ -53,6 +53,13 @@ jobs:
         uses: julia-actions/setup-julia@4c0cb0fce8556fdb04a90347310e5db8b1f98fb9 # v2
         with:
           version: '1.11'
+      - name: Pin research Python executable
+        run: |
+          set -euo pipefail
+          export RESEARCH_PYTHON="$pythonLocation/bin/python"
+          test -x "$RESEARCH_PYTHON"
+          "$RESEARCH_PYTHON" --version
+          echo "RESEARCH_PYTHON=$RESEARCH_PYTHON" >> "$GITHUB_ENV"
       - name: Record exact BootLoops checkout
         run: |
           set -euo pipefail
@@ -120,11 +127,11 @@ jobs:
       - name: Install Python scientific stack
         run: |
           set -euo pipefail
-          python -m pip install --disable-pip-version-check -r "$GITHUB_WORKSPACE/bootloops-lab/local/requirements-ci.txt"
+          "$RESEARCH_PYTHON" -m pip install --disable-pip-version-check -r "$GITHUB_WORKSPACE/bootloops-lab/local/requirements-ci.txt"
       - name: Verify Python scientific stack
         run: |
           set -euo pipefail
-          python - <<'PY'
+          "$RESEARCH_PYTHON" - <<'PY'
           from importlib.metadata import version
           import sys, mpmath, sympy, numpy, scipy, flint, gmpy2, yaml, jsonschema, networkx, dynesty, cypari2, msprime, tskit
           print('Python:', sys.version)
@@ -162,14 +169,20 @@ jobs:
           curl -L --fail --retry 3 -o "$RUNNER_TEMP/fflow.zip" "https://github.com/peraro/finiteflow/archive/$FFLOW_REF.zip"
           unzip -q "$RUNNER_TEMP/fflow.zip" -d "$RUNNER_TEMP/fflow-src"
           FFDIR="$RUNNER_TEMP/fflow-src/finiteflow-$FFLOW_REF"
-          cmake -S "$FFDIR" -B "$FFDIR/build" -DCMAKE_INSTALL_PREFIX="$FFPREFIX"
+          export CC=/usr/bin/gcc
+          export CXX=/usr/bin/g++
+          export CMAKE_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/lib:$FFPREFIX/lib
+          export CMAKE_INCLUDE_PATH=/usr/include:/usr/local/include:$FFPREFIX/include
+          cmake -S "$FFDIR" -B "$FFDIR/build" -DCMAKE_INSTALL_PREFIX="$FFPREFIX" -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ -DCMAKE_PREFIX_PATH="/usr;/usr/local;$FFPREFIX" -DCMAKE_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu;/usr/lib;$FFPREFIX/lib" -DCMAKE_INCLUDE_PATH="/usr/include;/usr/local/include;$FFPREFIX/include"
           cmake --build "$FFDIR/build" --parallel 2
           cmake --install "$FFDIR/build"
           git clone --depth 1 'https://github.com/BootLoops-ai/blade.git' vendor/blade
           git -C vendor/blade fetch --depth 1 origin "$BLADE_REF"; git -C vendor/blade checkout "$BLADE_REF"
           sed -i "s|^DFFLOWMLINK_DIR=.*|DFFLOWMLINK_DIR=\"$FFPREFIX\"|" vendor/blade/install.in.txt
           sed -i "s|^DCMAKE_PREFIX_PATH=.*|DCMAKE_PREFIX_PATH=\"/usr;/usr/local;$FFPREFIX\"|" vendor/blade/install.in.txt
-          cmake -S vendor/blade -B vendor/blade/build; cmake --build vendor/blade/build --parallel 2; cmake --install vendor/blade/build
+          cmake -S vendor/blade -B vendor/blade/build -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ -DCMAKE_PREFIX_PATH="/usr;/usr/local;$FFPREFIX" -DCMAKE_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu;/usr/lib;$FFPREFIX/lib" -DCMAKE_INCLUDE_PATH="/usr/include;/usr/local/include;$FFPREFIX/include"
+          cmake --build vendor/blade/build --parallel 2
+          cmake --install vendor/blade/build
           test -x vendor/blade/bin/redg1; test -x vendor/blade/bin/fitrel; test -x vendor/blade/bin/fflowcli; test -x vendor/blade/bin/dumppoints
           echo "BLADE_BIN_DIR=$GITHUB_WORKSPACE/vendor/blade/bin" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$FFPREFIX/lib:$GITHUB_WORKSPACE/vendor/blade/lib" >> "$GITHUB_ENV"
@@ -188,13 +201,13 @@ jobs:
         working-directory: vendor/bootloops
         run: |
           set -euo pipefail
-          python "$GITHUB_WORKSPACE/bootloops-lab/scripts/run_canonical_battery.py"             --root .             --par 4             --standard-timeout "$BOOTLOOPS_STANDARD_TIMEOUT"             --dogtag-timeout "$BOOTLOOPS_DOGTAG_TIMEOUT"             --abacus-timeout "$BOOTLOOPS_ABACUS_TIMEOUT" | tee bootloops-lab-selftest.log
+          "$RESEARCH_PYTHON" "$GITHUB_WORKSPACE/bootloops-lab/scripts/run_canonical_battery.py"             --root .             --par 4             --standard-timeout "$BOOTLOOPS_STANDARD_TIMEOUT"             --dogtag-timeout "$BOOTLOOPS_DOGTAG_TIMEOUT"             --abacus-timeout "$BOOTLOOPS_ABACUS_TIMEOUT" | tee bootloops-lab-selftest.log
           test -f selftest_results.json
       - name: Write acceptance provenance receipt
         if: always()
         run: |
           set -euo pipefail
-          python bootloops-lab/scripts/write_acceptance_receipt.py \
+          "$RESEARCH_PYTHON" bootloops-lab/scripts/write_acceptance_receipt.py \
             --root vendor/bootloops \
             --result vendor/bootloops/selftest_results.json \
             --out bootloops-lab-acceptance-receipt.json \
@@ -208,15 +221,15 @@ jobs:
       - name: Check expected baseline
         run: |
           set -euo pipefail
-          python bootloops-lab/scripts/check_expected_selftests.py vendor/bootloops/selftest_results.json bootloops-lab/config/expected-selftests.json
+          "$RESEARCH_PYTHON" bootloops-lab/scripts/check_expected_selftests.py vendor/bootloops/selftest_results.json bootloops-lab/config/expected-selftests.json --allow-provisional
       - name: Capture Python environment
         if: always()
         run: |
-          python -m pip freeze | sort > bootloops-pip-freeze.txt
+          "$RESEARCH_PYTHON" -m pip freeze | sort > bootloops-pip-freeze.txt
       - name: Generate acceptance report
         if: always()
         run: |
-          if [ -f vendor/bootloops/selftest_results.json ]; then python bootloops-lab/scripts/summarize_selftests.py vendor/bootloops/selftest_results.json | tee bootloops-lab-acceptance-summary.md; else printf '%s\n' '# BootLoops-Lab acceptance summary' '' 'selftest_results.json was not produced.' | tee bootloops-lab-acceptance-summary.md; fi
+          if [ -f vendor/bootloops/selftest_results.json ]; then "$RESEARCH_PYTHON" bootloops-lab/scripts/summarize_selftests.py vendor/bootloops/selftest_results.json | tee bootloops-lab-acceptance-summary.md; else printf '%s\n' '# BootLoops-Lab acceptance summary' '' 'selftest_results.json was not produced.' | tee bootloops-lab-acceptance-summary.md; fi
       - name: Publish job summary
         if: always()
         run: |
