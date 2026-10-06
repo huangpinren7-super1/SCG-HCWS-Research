@@ -1,0 +1,326 @@
+{
+  "certificate_type": "SCG-HCWS BootLoops 1.0 First-Generation Cloud Baseline",
+  "bootloops_commit": "66b680ce742e654cfe86da4f072a69061fe182b1",
+  "research_commit": "4c8c8b4574273438198073c55a66f2429de23d28",
+  "workflow_run": 5,
+  "workflow_run_id": 37438820516,
+  "workflow_conclusion": "success",
+  "runner": "ubuntu-24.04",
+  "python": "3.11",
+  "julia": "1.11",
+  "artifact_id": 11400509437,
+  "artifact_sha256": "51363fd943d18b226df9848bd82c067520ff67d664f823bfb6389d5373656690",
+  "package_count": 49,
+  "counts": {
+    "PASS": 45,
+    "REFUSED (by design)": 3,
+    "FAIL": 1
+  },
+  "fail": {
+    "package": "abacus",
+    "verification_class": "selftest",
+    "seconds": 300.1,
+    "diagnosis": "canonical battery timeout while [eichler] was readying its Julia project; no direct mathematical assertion mismatch reported"
+  },
+  "refused": {
+    "ffcapital": "missing user-supplied FireFly ff_save reconstruction state",
+    "frobenius-boundary": "missing per-point Kira reduction table",
+    "galois": "missing campaign/reference bank"
+  },
+  "packages": [
+    [
+      "abacus",
+      "selftest",
+      "FAIL",
+      300.1
+    ],
+    [
+      "amflow-kit",
+      "partial",
+      "PASS",
+      21.1
+    ],
+    [
+      "annihilator",
+      "selftest",
+      "PASS",
+      166.4
+    ],
+    [
+      "ansatzer",
+      "selftest",
+      "PASS",
+      19.9
+    ],
+    [
+      "baller",
+      "partial",
+      "PASS",
+      21.4
+    ],
+    [
+      "blade",
+      "partial",
+      "PASS",
+      0.5
+    ],
+    [
+      "clinch",
+      "partial",
+      "PASS",
+      1
+    ],
+    [
+      "coalescer",
+      "selftest",
+      "PASS",
+      136.5
+    ],
+    [
+      "cosmoflow",
+      "selftest",
+      "PASS",
+      26.4
+    ],
+    [
+      "counterweight",
+      "selftest",
+      "PASS",
+      49.9
+    ],
+    [
+      "dipstick",
+      "selftest",
+      "PASS",
+      36.5
+    ],
+    [
+      "dogtag",
+      "selftest",
+      "PASS",
+      275.5
+    ],
+    [
+      "eichler",
+      "partial",
+      "PASS",
+      7.1
+    ],
+    [
+      "ellipticus",
+      "selftest",
+      "PASS",
+      54
+    ],
+    [
+      "emitall",
+      "selftest",
+      "PASS",
+      6.5
+    ],
+    [
+      "eras",
+      "selftest",
+      "PASS",
+      0.5
+    ],
+    [
+      "famhar",
+      "selftest",
+      "PASS",
+      13
+    ],
+    [
+      "ffcapital",
+      "data-gated",
+      "REFUSED (by design)",
+      1.9
+    ],
+    [
+      "formglue",
+      "partial",
+      "PASS",
+      0.9
+    ],
+    [
+      "frobenius-boundary",
+      "data-gated",
+      "REFUSED (by design)",
+      30.3
+    ],
+    [
+      "galois",
+      "data-gated",
+      "REFUSED (by design)",
+      1
+    ],
+    [
+      "gatekeeper",
+      "selftest",
+      "PASS",
+      3.6
+    ],
+    [
+      "geotriage",
+      "selftest",
+      "PASS",
+      4.9
+    ],
+    [
+      "gpl-eval",
+      "partial",
+      "PASS",
+      235.2
+    ],
+    [
+      "holonomic",
+      "partial",
+      "PASS",
+      0.1
+    ],
+    [
+      "kira-stack",
+      "smoke",
+      "PASS",
+      0.4
+    ],
+    [
+      "landau-alphabet",
+      "selftest",
+      "PASS",
+      8.4
+    ],
+    [
+      "lockpick",
+      "partial",
+      "PASS",
+      4.3
+    ],
+    [
+      "longhand",
+      "selftest",
+      "PASS",
+      42
+    ],
+    [
+      "maxcut",
+      "partial",
+      "PASS",
+      137.9
+    ],
+    [
+      "membound",
+      "partial",
+      "PASS",
+      54.5
+    ],
+    [
+      "mixalot",
+      "selftest",
+      "PASS",
+      91.1
+    ],
+    [
+      "nestor",
+      "selftest",
+      "PASS",
+      9.1
+    ],
+    [
+      "numkin",
+      "smoke",
+      "PASS",
+      2.6
+    ],
+    [
+      "pmflow",
+      "smoke",
+      "PASS",
+      1.9
+    ],
+    [
+      "popcorn",
+      "selftest",
+      "PASS",
+      109
+    ],
+    [
+      "posq",
+      "partial",
+      "PASS",
+      9
+    ],
+    [
+      "qinvert",
+      "selftest",
+      "PASS",
+      1.3
+    ],
+    [
+      "rankscreen",
+      "selftest",
+      "PASS",
+      4.8
+    ],
+    [
+      "ratfit",
+      "partial",
+      "PASS",
+      2.9
+    ],
+    [
+      "seedling",
+      "partial",
+      "PASS",
+      32.1
+    ],
+    [
+      "subtropica",
+      "partial",
+      "PASS",
+      8.6
+    ],
+    [
+      "surd",
+      "partial",
+      "PASS",
+      5
+    ],
+    [
+      "terrier",
+      "partial",
+      "PASS",
+      82.1
+    ],
+    [
+      "tropical-sampler",
+      "selftest",
+      "PASS",
+      22.8
+    ],
+    [
+      "trust",
+      "partial",
+      "PASS",
+      4.3
+    ],
+    [
+      "vopclose",
+      "selftest",
+      "PASS",
+      3.2
+    ],
+    [
+      "wayfinder",
+      "partial",
+      "PASS",
+      135.7
+    ],
+    [
+      "winnow",
+      "partial",
+      "PASS",
+      3.5
+    ]
+  ]
+}
