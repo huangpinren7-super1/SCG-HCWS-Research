@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -86,10 +85,11 @@ def main() -> int:
             rc, data = run_group(root, group, timeout, label, args.par)
             merged.update(data)
             if rc != 0:
-                failures.extend(
-                    name for name, entry in data.items()
-                    if entry.get("status") not in ACCEPTED
-                )
+                failures.append(f"{label}: upstream run_selftests exited {rc}")
+            failures.extend(
+                name for name, entry in data.items()
+                if entry.get("status") not in ACCEPTED
+            )
             (tmp / f"{label}.json").write_text(
                 json.dumps(data, indent=1, ensure_ascii=False) + "\n",
                 encoding="utf-8",
