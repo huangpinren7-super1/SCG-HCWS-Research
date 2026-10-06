@@ -14,19 +14,23 @@ if str(ROOT) not in sys.path:
 from bootloops_lab.artifacts import list_artifacts, read_artifact
 from bootloops_lab.catalog import load_catalog, read_guide, resolve_root
 from bootloops_lab.profile import load_resident_profile, resident_packages
-from bootloops_lab.runner import run_acceptance
+from bootloops_lab.runner import bootloops_fingerprint, run_acceptance
 from bootloops_lab.verify import verify_job
 
 REGISTRY = ROOT / "gateway" / "registry.yaml"
 
+
 def registry() -> dict:
     return yaml.safe_load(REGISTRY.read_text(encoding="utf-8")) or {}
+
 
 def allowed(package: str) -> bool:
     return package in registry().get("tools", {})
 
+
 def bootloops_root() -> Path:
     return resolve_root(os.environ.get("BOOTLOOPS_ROOT") or ROOT / "vendor" / "bootloops")
+
 
 def main() -> None:
     try:
@@ -38,28 +42,40 @@ def main() -> None:
 
     @app.tool()
     def health():
-        "Return non-executing capability data."
-        c = load_catalog(bootloops_root())
-        r = registry()
+        "Return non-executing capability and provenance data."
+        root = bootloops_root()
+        c = load_catalog(root)
+        fp = bootloops_fingerprint(root)
         return {
             "schema": "scg-hcws-gateway-health-v1",
-            "gateway_version": "0.2.0",
-            "bootloops_ref": r["bootloops_ref"],
+            "gateway_version": "0.3.0",
+            "bootloops_ref": fp["actual_ref"],
+            "expected_bootloops_ref": fp["expected_ref"],
+            "ref_matches_registry": fp["ref_matches_registry"],
+            "worktree_clean": fp["worktree_clean"],
             "catalog_count": len(c),
-            "allowlist_count": len(r["tools"]),
+            "allowlist_count": len(registry().get("tools", {})),
             "resident_count": len(resident_packages()),
             "python": platform.python_version(),
         }
 
     @app.tool()
     def catalog():
-        "Return the allowlisted canonical package metadata."
-        c = load_catalog(bootloops_root())
-        r = registry()
+        "Return the allowlisted canonical package metadata bound to the actual checkout."
+        root = bootloops_root()
+        c = load_catalog(root)
+        fp = bootloops_fingerprint(root)
+        if not fp["ref_matches_registry"]:
+            raise RuntimeError(
+                f"BootLoops ref mismatch: actual={fp['actual_ref']} "
+                f"registry={fp['expected_ref']}"
+            )
         return {
             "schema": "scg-hcws-gateway-catalog-v1",
-            "bootloops_ref": r["bootloops_ref"],
-            "tools": {n: {**spec, **c[n]} for n, spec in r["tools"].items() if n in c},
+            "bootloops_ref": fp["actual_ref"],
+            "ref_matches_registry": True,
+            "worktree_clean": fp["worktree_clean"],
+            "tools": {n: {**spec, **c[n]} for n, spec in registry().get("tools", {}).items() if n in c},
         }
 
     @app.tool()
@@ -89,7 +105,7 @@ def main() -> None:
 
     @app.tool()
     def verify(job_id: str):
-        "Verify receipt and captured hashes; this is not a theorem proof."
+        "Verify receipt integrity and acceptance status; this is not a theorem proof."
         return verify_job(bootloops_root(), job_id)
 
     @app.tool()
@@ -107,6 +123,7 @@ def main() -> None:
         return read_artifact(bootloops_root(), job_id, name)
 
     app.run()
+
 
 if __name__ == "__main__":
     main()
