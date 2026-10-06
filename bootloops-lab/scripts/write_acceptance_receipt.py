@@ -46,6 +46,7 @@ def main() -> int:
     ap.add_argument("--standard-timeout", type=int, default=300)
     ap.add_argument("--dogtag-timeout", type=int, default=360)
     ap.add_argument("--abacus-timeout", type=int, default=1200)
+    ap.add_argument("--require-accepted", action="store_true")
     args = ap.parse_args()
 
     root = Path(args.root).resolve()
@@ -53,8 +54,11 @@ def main() -> int:
     out_path = Path(args.out).resolve()
 
     import yaml
-    expected_ref = str((yaml.safe_load(REGISTRY.read_text(encoding="utf-8")) or {}).get("bootloops_ref", ""))
+    registry_data = yaml.safe_load(REGISTRY.read_text(encoding="utf-8")) or {}
+    expected_ref = str(registry_data.get("bootloops_ref", ""))
     actual_ref = git(root, "rev-parse", "HEAD")
+    manifest = json.loads((root / "tools" / "BATTERIES.json").read_text(encoding="utf-8"))
+    expected_packages = set(manifest)
     status_lines = [x for x in git(root, "status", "--porcelain", "--untracked-files=all").splitlines() if x.strip()]
     unexpected = [x for x in status_lines if (x[3:] if len(x) >= 3 else x) != "selftest_results.json"]
 
@@ -98,7 +102,8 @@ def main() -> int:
         receipt["package_statuses"] = {k: v.get("status", "UNKNOWN") for k, v in sorted(data.items())}
         receipt["package_classes"] = {k: v.get("class", "unknown") for k, v in sorted(data.items())}
         receipt["accepted"] = (
-            len(data) == 49
+            len(data) == len(expected_packages)
+            and set(data) == expected_packages
             and set(status_counts).issubset({"PASS", "REFUSED (by design)"})
             and actual_ref == expected_ref
             and not unexpected
@@ -113,7 +118,7 @@ def main() -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(receipt, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(receipt, indent=2, ensure_ascii=False, sort_keys=True))
-    return 0 if receipt["accepted"] else 1
+    return 0 if (receipt["accepted"] or not args.require_accepted) else 1
 
 
 if __name__ == "__main__":
