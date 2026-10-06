@@ -13,7 +13,7 @@ def fake(root: Path, writes: bool) -> Path:
     (root/"tools"/"fake").mkdir(parents=True)
     (root/"tools"/"README.md").write_text("| fake/ | fixture | selftest |\n", encoding="utf-8")
     (root/"tools"/"BATTERIES.json").write_text(
-        json.dumps({"fake": {"cmd": "python3 tools/fake/test.py", "cwd": "root"}}),
+        json.dumps({"fake": {"cmd": "python3 -B tools/fake/test.py", "cwd": "root"}}),
         encoding="utf-8",
     )
     code = "import pathlib, json\n"
@@ -23,7 +23,7 @@ def fake(root: Path, writes: bool) -> Path:
         code += "print('no result')\n"
     (root/"tools"/"fake"/"test.py").write_text(code, encoding="utf-8")
     (root/"run_selftests.py").write_text(
-        "import subprocess,sys\nsubprocess.run([sys.executable,'tools/fake/test.py'])\n",
+        "import subprocess,sys\nsubprocess.run([sys.executable, '-B', 'tools/fake/test.py'])\n",
         encoding="utf-8",
     )
     subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
@@ -74,7 +74,6 @@ def test_adversarial_receipt_semantics(tmp_path, monkeypatch):
     job = tmp_path/"runs"/rec["job_id"]
     receipt = json.loads((job/"receipt.json").read_text(encoding="utf-8"))
 
-    # Missing evidence must never verify as valid.
     missing = dict(receipt)
     missing.pop("stdout_sha256")
     missing_path = tmp_path/"missing.json"
@@ -84,15 +83,13 @@ def test_adversarial_receipt_semantics(tmp_path, monkeypatch):
     assert not missing_result["acceptance_ok"]
     assert not missing_result["valid"]
 
-    # A self-consistent FAIL is internally intact but is not an accepted run.
     result = json.loads((job/"selftest_results.json").read_text(encoding="utf-8"))
     result["fake"]["status"] = "FAIL"
     (job/"selftest_results.json").write_text(json.dumps(result), encoding="utf-8")
     failed = dict(receipt)
     failed["status"] = "FAIL"
     failed["result"] = result["fake"]
-    from .receipt import sha256_file as _sha256_file
-    failed["result_sha256"] = _sha256_file(job/"selftest_results.json")
+    failed["result_sha256"] = verify.sha256_file(job/"selftest_results.json")
     failed_path = tmp_path/"fail.json"
     failed_path.write_text(json.dumps(failed), encoding="utf-8")
     failed_result = verify.verify_receipt(failed_path)
@@ -100,14 +97,16 @@ def test_adversarial_receipt_semantics(tmp_path, monkeypatch):
     assert not failed_result["acceptance_ok"]
     assert not failed_result["valid"]
 
+
 def test_runner_refuses_registry_mismatch(tmp_path, monkeypatch):
     bl = fake(tmp_path/"bl", True)
-    reg = bl/"registry.yaml"
-    reg.write_text("bootloops_ref: " + "0"*40 + "\n", encoding="utf-8")
+    reg = bl.parent/"mismatch-registry.yaml"
+    reg.write_text("bootloops_ref: '" + "deadbeef"*5 + "'\n", encoding="utf-8")
     monkeypatch.setattr(runner, "REGISTRY_PATH", reg)
     import pytest
     with pytest.raises(RuntimeError, match="BootLoops ref mismatch"):
         run_acceptance("fake", root=str(bl), timeout=30)
+
 
 def test_runner_refuses_dirty_bootloops(tmp_path, monkeypatch):
     bl = fake(tmp_path/"bl", True)
