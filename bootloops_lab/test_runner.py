@@ -49,6 +49,7 @@ def test_receipt_verify(tmp_path, monkeypatch):
     rec = run_acceptance("fake", root=str(bl), timeout=30)
     assert rec["status"] == "PASS"
     checked = verify_job(bl, rec["job_id"])
+    print("RECEIPT:", json.dumps(rec, sort_keys=True))
     print("VERIFY_CHECKED:", json.dumps(checked, sort_keys=True))
     assert checked["integrity_ok"], checked
     assert checked["acceptance_ok"]
