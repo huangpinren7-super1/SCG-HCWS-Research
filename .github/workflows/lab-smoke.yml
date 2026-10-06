@@ -47,7 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends pari-gp libpari-dev
+          sudo apt-get install -y --no-install-recommends pari-gp pari-doc libpari-dev
       - name: Install canonical locked Python layer
         run: |
           set -euo pipefail
