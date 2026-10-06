@@ -52,46 +52,47 @@ jobs:
             libgmp-dev libmpfr-dev libmpc-dev \
             pari-gp pari-doc perl libpari-dev libflint-dev
           python -m pip install --upgrade pip setuptools wheel
-          python -m pip install mpmath sympy numpy scipy python-flint==0.9.0 gmpy2 pyyaml networkx dynesty cypari2==2.2.2 pytest
+          python -m pip install \
+            mpmath sympy numpy scipy python-flint==0.9.0 \
+            gmpy2 pyyaml networkx dynesty cypari2==2.2.2 pytest
 
       - name: Run Abacus only with 1200s timeout
         working-directory: vendor/bootloops
         continue-on-error: true
         run: |
+          set -euo pipefail
           python run_selftests.py abacus --timeout "$ABACUS_TIMEOUT" | tee abacus-rescue.log
+          test -f selftest_results.json
+
+      - name: Assert Abacus PASS
+        if: always()
+        working-directory: vendor/bootloops
+        run: |
+          set -euo pipefail
           test -f selftest_results.json
           python - <<'PY'
           import json
-          d=json.load(open('selftest_results.json'))
-          print(json.dumps(d.get('abacus', d), indent=2))
+          record = json.load(open('selftest_results.json', encoding='utf-8')).get('abacus', {})
+          print(json.dumps(record, indent=2))
+          assert record.get('status') == 'PASS', f"abacus status={record.get('status')!r}"
           PY
 
       - name: Publish Abacus result
         if: always()
         run: |
           echo '# Abacus rescue run' >> "$GITHUB_STEP_SUMMARY"
-          echo >> "$GITHUB_STEP_SUMMARY"
           echo "- BootLoops ref: $BOOTLOOPS_REF" >> "$GITHUB_STEP_SUMMARY"
           echo "- Timeout: $ABACUS_TIMEOUT s" >> "$GITHUB_STEP_SUMMARY"
-          echo '- Runner: Ubuntu 24.04 / Python 3.11 / Julia 1.11' >> "$GITHUB_STEP_SUMMARY"
           if [ -f vendor/bootloops/selftest_results.json ]; then
-            python - <<'PY' > abacus-rescue-summary.md
-          import json
-          d=json.load(open('vendor/bootloops/selftest_results.json'))
-          print('# Abacus rescue result')
-          print()
-          print(json.dumps(d.get('abacus', d), indent=2))
-          PY
-            cat abacus-rescue-summary.md >> "$GITHUB_STEP_SUMMARY"
+            cat vendor/bootloops/selftest_results.json >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload Abacus evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bootloops-abacus
+          name: bootloops-abacus-rescue-${{ github.run_number }}
           if-no-files-found: warn
           path: |
             vendor/bootloops/selftest_results.json
             vendor/bootloops/abacus-rescue.log
-            abacus-rescue-summary.md
