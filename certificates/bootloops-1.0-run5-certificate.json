@@ -1,5 +1,10 @@
 {
-  "certificate_type": "SCG-HCWS BootLoops 1.0 First-Generation Cloud Baseline",
+  "record_type": "SCG-HCWS BootLoops 1.0 Historical Run Record",
+  "record_status": "HISTORICAL-SUPERSEDED",
+  "superseded_by": {
+    "current_provisional_baseline": "bootloops-lab/config/expected-selftests.json",
+    "source_run_id": 37450608252
+  },
   "bootloops_commit": "66b680ce742e654cfe86da4f072a69061fe182b1",
   "research_commit": "4c8c8b4574273438198073c55a66f2429de23d28",
   "workflow_run": 5,
@@ -10,6 +15,8 @@
   "julia": "1.11",
   "artifact_id": 11400509437,
   "artifact_sha256": "51363fd943d18b226df9848bd82c067520ff67d664f823bfb6389d5373656690",
+  "selftest_results_sha256": "02e1913536f0e808d5a0ceaf5798615e6c0589dce1e004688d5d03617e532b10",
+  "raw_selftest_results_path": "certificates/historical/bootloops-1.0-run5-selftest_results.json",
   "package_count": 49,
   "counts": {
     "PASS": 45,
@@ -20,13 +27,18 @@
     "package": "abacus",
     "verification_class": "selftest",
     "seconds": 300.1,
-    "diagnosis": "canonical battery timeout while [eichler] was readying its Julia project; no direct mathematical assertion mismatch reported"
+    "diagnosis": "canonical battery timeout while [eichler] was readying its Julia project; this remains a real FAIL and is not reclassified by interpretation."
   },
   "refused": {
     "ffcapital": "missing user-supplied FireFly ff_save reconstruction state",
     "frobenius-boundary": "missing per-point Kira reduction table",
     "galois": "missing campaign/reference bank"
   },
+  "notes": [
+    "This record predates the current fail-closed acceptance policy.",
+    "workflow_conclusion=success coexisted with one package FAIL because the old workflow used continue-on-error; this record is retained precisely as evidence of that historical defect.",
+    "It is not the current acceptance baseline."
+  ],
   "packages": [
     [
       "abacus",
