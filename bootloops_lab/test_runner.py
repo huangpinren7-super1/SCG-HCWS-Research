@@ -64,3 +64,55 @@ def test_no_stale_result(tmp_path, monkeypatch):
     monkeypatch.setenv("BOOTLOOPS_LAB_RUNS", str(tmp_path/"runs"))
     rec = run_acceptance("fake", root=str(bl), timeout=30)
     assert rec["status"] == "UNKNOWN"
+
+
+def test_adversarial_receipt_semantics(tmp_path, monkeypatch):
+    bl = fake(tmp_path/"bl", True)
+    bind_test_registry(bl, monkeypatch)
+    monkeypatch.setenv("BOOTLOOPS_LAB_RUNS", str(tmp_path/"runs"))
+    rec = run_acceptance("fake", root=str(bl), timeout=30)
+    job = tmp_path/"runs"/rec["job_id"]
+    receipt = json.loads((job/"receipt.json").read_text(encoding="utf-8"))
+
+    # Missing evidence must never verify as valid.
+    missing = dict(receipt)
+    missing.pop("stdout_sha256")
+    missing_path = tmp_path/"missing.json"
+    missing_path.write_text(json.dumps(missing), encoding="utf-8")
+    missing_result = verify.verify_receipt(missing_path)
+    assert not missing_result["integrity_ok"]
+    assert not missing_result["acceptance_ok"]
+    assert not missing_result["valid"]
+
+    # A self-consistent FAIL is internally intact but is not an accepted run.
+    result = json.loads((job/"selftest_results.json").read_text(encoding="utf-8"))
+    result["fake"]["status"] = "FAIL"
+    (job/"selftest_results.json").write_text(json.dumps(result), encoding="utf-8")
+    failed = dict(receipt)
+    failed["status"] = "FAIL"
+    failed["result"] = result["fake"]
+    from .receipt import sha256_file as _sha256_file
+    failed["result_sha256"] = _sha256_file(job/"selftest_results.json")
+    failed_path = tmp_path/"fail.json"
+    failed_path.write_text(json.dumps(failed), encoding="utf-8")
+    failed_result = verify.verify_receipt(failed_path)
+    assert failed_result["integrity_ok"]
+    assert not failed_result["acceptance_ok"]
+    assert not failed_result["valid"]
+
+def test_runner_refuses_registry_mismatch(tmp_path, monkeypatch):
+    bl = fake(tmp_path/"bl", True)
+    reg = bl/"registry.yaml"
+    reg.write_text("bootloops_ref: " + "0"*40 + "\n", encoding="utf-8")
+    monkeypatch.setattr(runner, "REGISTRY_PATH", reg)
+    import pytest
+    with pytest.raises(RuntimeError, match="BootLoops ref mismatch"):
+        run_acceptance("fake", root=str(bl), timeout=30)
+
+def test_runner_refuses_dirty_bootloops(tmp_path, monkeypatch):
+    bl = fake(tmp_path/"bl", True)
+    bind_test_registry(bl, monkeypatch)
+    (bl/"DO_NOT_TOUCH").write_text("dirty\n", encoding="utf-8")
+    import pytest
+    with pytest.raises(RuntimeError, match="worktree is dirty"):
+        run_acceptance("fake", root=str(bl), timeout=30)
