@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """Run the canonical 49-package battery with explicit timeout classes.
 
-The upstream default of 300 s is retained for ordinary packages. Historically
-observed heavier packages get explicit, documented exceptions:
+The upstream default of 300 s is retained for ordinary packages. Packages
+with engine-level long-running work get explicit exceptions:
   dogtag: 360 s
   abacus: 1200 s
+  holonomic: 1200 s
+
+The holonomic smoke runs under Sage/FLINT and must not inherit the temporary
+FiniteFlow/Blade dynamic-library search paths used by the separate Blade
+preflight. Its mathematical gates remain mandatory; the timeout only bounds
+execution and never converts FAIL to PASS.
 
 The final selftest_results.json is a deterministic merge of the three runs.
 A FAIL is never reclassified; the wrapper exits non-zero whenever any package
@@ -60,6 +66,7 @@ def main() -> int:
     ap.add_argument("--standard-timeout", type=int, default=300)
     ap.add_argument("--dogtag-timeout", type=int, default=360)
     ap.add_argument("--abacus-timeout", type=int, default=1200)
+    ap.add_argument("--holonomic-timeout", type=int, default=1200)
     args = ap.parse_args()
 
     root = Path(args.root).resolve()
@@ -69,7 +76,11 @@ def main() -> int:
         raise RuntimeError(
             f"canonical manifest drift: expected {CANONICAL_PACKAGE_COUNT} packages, got {len(packages)}"
         )
-    exceptions = {"abacus": args.abacus_timeout, "dogtag": args.dogtag_timeout}
+    exceptions = {
+        "abacus": args.abacus_timeout,
+        "dogtag": args.dogtag_timeout,
+        "holonomic": args.holonomic_timeout,
+    }
     standard = [p for p in packages if p not in exceptions]
 
     merged: dict[str, dict] = {}
@@ -90,12 +101,41 @@ def main() -> int:
         child_env = dict(os.environ)
         child_env["PATH"] = f"{shim_dir}:{child_env.get('PATH', '')}"
 
-        for label, group, timeout in (
-            ("standard", standard, args.standard_timeout),
-            ("dogtag-exception", ["dogtag"], args.dogtag_timeout),
-            ("abacus-exception", ["abacus"], args.abacus_timeout),
+        # Restore the pre-Blade loader path for SageMath/FLINT. Blade's
+        # private library directories are needed by Blade executables but must
+        # not shadow libraries used by the independent holonomic engine.
+        holonomic_env = dict(child_env)
+        base_ld_library_path = holonomic_env.get("RESEARCH_BASE_LD_LIBRARY_PATH")
+        if base_ld_library_path is not None:
+            if base_ld_library_path:
+                holonomic_env["LD_LIBRARY_PATH"] = base_ld_library_path
+            else:
+                holonomic_env.pop("LD_LIBRARY_PATH", None)
+        else:
+            loader_paths = holonomic_env.get("LD_LIBRARY_PATH", "").split(os.pathsep)
+            clean_paths = [
+                path for path in loader_paths
+                if path
+                and "/vendor/blade/lib" not in path
+                and "/finiteflow/lib" not in path
+            ]
+            if clean_paths:
+                holonomic_env["LD_LIBRARY_PATH"] = os.pathsep.join(clean_paths)
+            else:
+                holonomic_env.pop("LD_LIBRARY_PATH", None)
+        print(
+            "[holonomic isolated environment] LD_LIBRARY_PATH="
+            + holonomic_env.get("LD_LIBRARY_PATH", "<unset>"),
+            flush=True,
+        )
+
+        for label, group, timeout, group_env in (
+            ("standard", standard, args.standard_timeout, child_env),
+            ("dogtag-exception", ["dogtag"], args.dogtag_timeout, child_env),
+            ("abacus-exception", ["abacus"], args.abacus_timeout, child_env),
+            ("holonomic-exception", ["holonomic"], args.holonomic_timeout, holonomic_env),
         ):
-            rc, data = run_group(root, group, timeout, label, args.par, child_env)
+            rc, data = run_group(root, group, timeout, label, args.par, group_env)
             merged.update(data)
             if rc != 0:
                 failures.append(f"{label}: upstream run_selftests exited {rc}")
@@ -135,8 +175,8 @@ def main() -> int:
     print("\n=== merged canonical result ===")
     print(json.dumps(counts, indent=2, ensure_ascii=False))
     print(
-        "timeout policy: standard=300s, dogtag=360s, abacus=1200s; "
-        "upstream default remains 300s"
+        "timeout policy: standard=300s, dogtag=360s, abacus=1200s, "
+        "holonomic=1200s; upstream default remains 300s"
     )
     if failures:
         print(f"canonical battery FAILED: {sorted(set(failures))}", file=sys.stderr)
