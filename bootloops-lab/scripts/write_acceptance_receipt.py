@@ -45,7 +45,7 @@ def main() -> int:
     ap.add_argument("--par", type=int, default=4)
     ap.add_argument("--standard-timeout", type=int, default=300)
     ap.add_argument("--dogtag-timeout", type=int, default=360)
-    ap.add_argument("--abacus-timeout", type=int, default=1200)
+    ap.add_argument("--abacus-timeout", type=int, default=300)
     ap.add_argument("--holonomic-timeout", type=int, default=1200)
     ap.add_argument("--require-accepted", action="store_true")
     args = ap.parse_args()

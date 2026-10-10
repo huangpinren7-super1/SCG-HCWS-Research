@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Run the canonical 49-package battery with explicit timeout classes.
 
-The upstream default of 300 s is retained for ordinary packages. Packages
-with engine-level long-running work get explicit exceptions:
+The upstream default of 300 s is retained for ordinary packages.
+Current timeout policy:
   dogtag: 360 s
-  abacus: 1200 s
+  abacus: 300 s (restored to the upstream default)
   holonomic: 1200 s
 
 The holonomic smoke runs under Sage/FLINT and must not inherit the temporary
@@ -65,7 +65,7 @@ def main() -> int:
     ap.add_argument("--par", type=int, default=4)
     ap.add_argument("--standard-timeout", type=int, default=300)
     ap.add_argument("--dogtag-timeout", type=int, default=360)
-    ap.add_argument("--abacus-timeout", type=int, default=1200)
+    ap.add_argument("--abacus-timeout", type=int, default=300)
     ap.add_argument("--holonomic-timeout", type=int, default=1200)
     args = ap.parse_args()
 
@@ -175,7 +175,7 @@ def main() -> int:
     print("\n=== merged canonical result ===")
     print(json.dumps(counts, indent=2, ensure_ascii=False))
     print(
-        "timeout policy: standard=300s, dogtag=360s, abacus=1200s, "
+        "timeout policy: standard=300s, dogtag=360s, abacus=300s, "
         "holonomic=1200s; upstream default remains 300s"
     )
     if failures:
