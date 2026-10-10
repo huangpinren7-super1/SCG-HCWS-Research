@@ -28,6 +28,7 @@ env:
   BOOTLOOPS_STANDARD_TIMEOUT: '300'
   BOOTLOOPS_DOGTAG_TIMEOUT: '360'
   BOOTLOOPS_ABACUS_TIMEOUT: '1200'
+  BOOTLOOPS_HOLONOMIC_TIMEOUT: '1200'
 
 jobs:
   acceptance:
@@ -165,6 +166,8 @@ jobs:
           FFLOW_REF: 'b951bf7361643292ae3846383281e5f4626dad78'
         run: |
           set -euo pipefail
+          BASE_LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+          echo "RESEARCH_BASE_LD_LIBRARY_PATH=$BASE_LD_LIBRARY_PATH" >> "$GITHUB_ENV"
           FFPREFIX="$RUNNER_TEMP/finiteflow"; mkdir -p "$RUNNER_TEMP/fflow-src"
           curl -L --fail --retry 3 -o "$RUNNER_TEMP/fflow.zip" "https://github.com/peraro/finiteflow/archive/$FFLOW_REF.zip"
           unzip -q "$RUNNER_TEMP/fflow.zip" -d "$RUNNER_TEMP/fflow-src"
@@ -185,7 +188,7 @@ jobs:
           cmake --install vendor/blade/build
           test -x vendor/blade/bin/redg1; test -x vendor/blade/bin/fitrel; test -x vendor/blade/bin/fflowcli; test -x vendor/blade/bin/dumppoints
           echo "BLADE_BIN_DIR=$GITHUB_WORKSPACE/vendor/blade/bin" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=$FFPREFIX/lib:$GITHUB_WORKSPACE/vendor/blade/lib" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$FFPREFIX/lib:$GITHUB_WORKSPACE/vendor/blade/lib:$BASE_LD_LIBRARY_PATH" >> "$GITHUB_ENV"
           echo 'Blade engine build: PASS'
           echo 'Disclosure: the Blade install template is locally parameterized for this runner prefix; vendor/blade source files are not changed.'
       - name: Configure optional reference/data banks
@@ -201,16 +204,18 @@ jobs:
         working-directory: vendor/bootloops
         run: |
           set -euo pipefail
-          "$RESEARCH_PYTHON" "$GITHUB_WORKSPACE/bootloops-lab/scripts/run_canonical_battery.py"             --root .             --par 4             --standard-timeout "$BOOTLOOPS_STANDARD_TIMEOUT"             --dogtag-timeout "$BOOTLOOPS_DOGTAG_TIMEOUT"             --abacus-timeout "$BOOTLOOPS_ABACUS_TIMEOUT" | tee bootloops-lab-selftest.log
+          "$RESEARCH_PYTHON" "$GITHUB_WORKSPACE/bootloops-lab/scripts/run_canonical_battery.py"             --root .             --par 4             --standard-timeout "$BOOTLOOPS_STANDARD_TIMEOUT"             --dogtag-timeout "$BOOTLOOPS_DOGTAG_TIMEOUT"             --abacus-timeout "$BOOTLOOPS_ABACUS_TIMEOUT"             --holonomic-timeout "$BOOTLOOPS_HOLONOMIC_TIMEOUT" | tee bootloops-lab-selftest.log
           test -f selftest_results.json
       - name: Diagnose holonomic smoke failure
         if: failure()
         continue-on-error: true
         run: |
           set -uo pipefail
-          echo "Re-running the holonomic smoke directly to expose S1-S6 gate diagnostics."
+          echo "Re-running the holonomic smoke with the pre-Blade library path to expose S1-S6 gate diagnostics."
+          printf 'current LD_LIBRARY_PATH=%s\n' "${LD_LIBRARY_PATH:-<unset>}"
+          printf 'baseline LD_LIBRARY_PATH=%s\n' "${RESEARCH_BASE_LD_LIBRARY_PATH:-<unset>}"
           set +e
-          "$HOLONOMIC_SAGE" -python "$GITHUB_WORKSPACE/vendor/bootloops/tools/holonomic/smoke_test.py" "$GITHUB_WORKSPACE/holonomic-smoke-diagnostic-receipt.json" 2>&1 | tee "$GITHUB_WORKSPACE/holonomic-smoke-diagnostic.log"
+          env LD_LIBRARY_PATH="${RESEARCH_BASE_LD_LIBRARY_PATH:-}" "$HOLONOMIC_SAGE" -python "$GITHUB_WORKSPACE/vendor/bootloops/tools/holonomic/smoke_test.py" "$GITHUB_WORKSPACE/holonomic-smoke-diagnostic-receipt.json" 2>&1 | tee "$GITHUB_WORKSPACE/holonomic-smoke-diagnostic.log"
           smoke_rc=${PIPESTATUS[0]}
           echo "HOLONOMIC_SMOKE_EXIT=$smoke_rc"
           if [ -f "$GITHUB_WORKSPACE/holonomic-smoke-diagnostic-receipt.json" ]; then
@@ -232,7 +237,8 @@ jobs:
             --par 4 \
             --standard-timeout "$BOOTLOOPS_STANDARD_TIMEOUT" \
             --dogtag-timeout "$BOOTLOOPS_DOGTAG_TIMEOUT" \
-            --abacus-timeout "$BOOTLOOPS_ABACUS_TIMEOUT"
+            --abacus-timeout "$BOOTLOOPS_ABACUS_TIMEOUT" \
+            --holonomic-timeout "$BOOTLOOPS_HOLONOMIC_TIMEOUT"
 
       - name: Check expected baseline
         run: |
