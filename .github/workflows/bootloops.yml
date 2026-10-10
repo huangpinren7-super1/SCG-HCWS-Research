@@ -203,6 +203,22 @@ jobs:
           set -euo pipefail
           "$RESEARCH_PYTHON" "$GITHUB_WORKSPACE/bootloops-lab/scripts/run_canonical_battery.py"             --root .             --par 4             --standard-timeout "$BOOTLOOPS_STANDARD_TIMEOUT"             --dogtag-timeout "$BOOTLOOPS_DOGTAG_TIMEOUT"             --abacus-timeout "$BOOTLOOPS_ABACUS_TIMEOUT" | tee bootloops-lab-selftest.log
           test -f selftest_results.json
+      - name: Diagnose holonomic smoke failure
+        if: failure()
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          echo "Re-running the holonomic smoke directly to expose S1-S6 gate diagnostics."
+          set +e
+          "$HOLONOMIC_SAGE" -python "$GITHUB_WORKSPACE/vendor/bootloops/tools/holonomic/smoke_test.py" "$GITHUB_WORKSPACE/holonomic-smoke-diagnostic-receipt.json" 2>&1 | tee "$GITHUB_WORKSPACE/holonomic-smoke-diagnostic.log"
+          smoke_rc=${PIPESTATUS[0]}
+          echo "HOLONOMIC_SMOKE_EXIT=$smoke_rc"
+          if [ -f "$GITHUB_WORKSPACE/holonomic-smoke-diagnostic-receipt.json" ]; then
+            cat "$GITHUB_WORKSPACE/holonomic-smoke-diagnostic-receipt.json"
+          else
+            echo "Holonomic smoke did not produce a receipt."
+          fi
+          exit 0
       - name: Write acceptance provenance receipt
         if: always()
         run: |
@@ -254,3 +270,5 @@ jobs:
             bootloops-lab-acceptance-summary.md
             bootloops-lab-acceptance-receipt.json
             bootloops-pip-freeze.txt
+            holonomic-smoke-diagnostic.log
+            holonomic-smoke-diagnostic-receipt.json
