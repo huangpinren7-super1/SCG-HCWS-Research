@@ -1,0 +1,165 @@
+name: BootLoops Acceptance Battery
+
+on:
+  workflow_dispatch:
+    inputs:
+      bootloops_ref:
+        description: "BootLoops upstream commit SHA (40 hex characters)"
+        required: true
+        default: "66b680ce742e654cfe86da4f072a69061fe182b1"
+        type: string
+      timeout:
+        description: "Per-package test timeout in seconds (30-900)"
+        required: true
+        default: "300"
+        type: string
+      parallelism:
+        description: "Parallel packages (1-8; Julia tests serialize internally)"
+        required: true
+        default: "4"
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/bootloops.yml"
+      - "bootloops-lab/**"
+      - "experiments/**"
+      - "certificates/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootloops-acceptance-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: "1"
+  BOOTLOOPS_REF: ${{ github.event.inputs.bootloops_ref || '66b680ce742e654cfe86da4f072a69061fe182b1' }}
+  BOOTLOOPS_TIMEOUT: ${{ github.event.inputs.timeout || '300' }}
+  BOOTLOOPS_PAR: ${{ github.event.inputs.parallelism || '4' }}
+
+jobs:
+  acceptance:
+    name: BootLoops 49-package acceptance battery
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout SCG-HCWS lab
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Checkout pinned upstream BootLoops
+        uses: actions/checkout@v4
+        with:
+          repository: BootLoops-ai/bootloops
+          ref: ${{ env.BOOTLOOPS_REF }}
+          path: vendor/bootloops
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python baseline
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: bootloops-lab/requirements-core.txt
+
+      - name: Set up Julia baseline
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: "1.11"
+
+      - name: Validate pinned source and exact 49-package manifest
+        run: |
+          python bootloops-lab/scripts/validate_checkout.py vendor/bootloops "$BOOTLOOPS_REF"
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential gfortran pkg-config \
+            libgmp-dev libmpfr-dev libmpc-dev \
+            pari-gp libpari-dev
+
+      - name: Install required Python scientific core
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -r bootloops-lab/requirements-core.txt
+
+      - name: Install common optional scientific dependencies
+        continue-on-error: true
+        run: python -m pip install -r bootloops-lab/requirements-extra-common.txt
+
+      - name: Install optional PARI/GP Python binding
+        continue-on-error: true
+        run: python -m pip install cypari2
+
+      - name: Install optional population-genetics dependencies
+        continue-on-error: true
+        run: python -m pip install msprime tskit
+
+      - name: Install optional moments-popgen cross-check
+        continue-on-error: true
+        run: python -m pip install moments-popgen
+
+      - name: Record runtime environment
+        if: always()
+        run: |
+          {
+            python --version
+            python -m pip freeze
+            echo
+            if command -v julia >/dev/null 2>&1; then julia --version; else echo "Julia unavailable"; fi
+            echo
+            uname -a
+          } > pip-freeze.txt
+          cat pip-freeze.txt
+
+      - name: Run canonical upstream 49-package acceptance battery
+        working-directory: vendor/bootloops
+        run: |
+          set -o pipefail
+          python run_selftests.py --par "$BOOTLOOPS_PAR" --timeout "$BOOTLOOPS_TIMEOUT" | tee bootloops-lab-selftest.log
+
+      - name: Generate acceptance report
+        if: always()
+        run: |
+          python bootloops-lab/scripts/summarize_selftests.py \
+            vendor/bootloops/selftest_results.json > bootloops-lab-acceptance-summary.md
+
+      - name: Enforce strict 49-package result gate
+        if: always()
+        run: |
+          python bootloops-lab/scripts/check_results.py \
+            vendor/bootloops/selftest_results.json --expected 49
+
+      - name: Publish GitHub Actions job summary
+        if: always()
+        run: |
+          cat bootloops-lab-acceptance-summary.md >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo
+            echo "## Reproducibility metadata"
+            echo "- Requested BootLoops SHA: $BOOTLOOPS_REF"
+            echo "- Python baseline: 3.11"
+            echo "- Julia baseline: 1.11"
+            echo "- Per-package timeout: $BOOTLOOPS_TIMEOUT seconds"
+            echo "- Parallelism: $BOOTLOOPS_PAR"
+            echo "- Workflow commit: $GITHUB_SHA"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootloops-acceptance-${{ github.run_number }}
+          if-no-files-found: warn
+          path: |
+            vendor/bootloops/selftest_results.json
+            vendor/bootloops/bootloops-lab-selftest.log
+            bootloops-lab-acceptance-summary.md
+            bootloops-lab-env.json
+            pip-freeze.txt

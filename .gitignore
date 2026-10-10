@@ -1,0 +1,10 @@
+# Local copies and generated run products
+vendor/
+.venv/
+__pycache__/
+*.py[cod]
+selftest_results.json
+bootloops-lab-selftest.log
+bootloops-lab-acceptance-summary.md
+bootloops-lab-env.json
+pip-freeze.txt

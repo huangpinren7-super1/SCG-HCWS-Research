@@ -1,0 +1,5 @@
+scipy
+pyyaml
+gmpy2
+networkx
+dynesty
