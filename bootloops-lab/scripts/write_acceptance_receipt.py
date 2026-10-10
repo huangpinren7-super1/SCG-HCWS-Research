@@ -46,6 +46,7 @@ def main() -> int:
     ap.add_argument("--standard-timeout", type=int, default=300)
     ap.add_argument("--dogtag-timeout", type=int, default=360)
     ap.add_argument("--abacus-timeout", type=int, default=1200)
+    ap.add_argument("--holonomic-timeout", type=int, default=1200)
     ap.add_argument("--require-accepted", action="store_true")
     args = ap.parse_args()
 
@@ -83,6 +84,7 @@ def main() -> int:
             "standard_timeout_seconds": args.standard_timeout,
             "dogtag_timeout_seconds": args.dogtag_timeout,
             "abacus_timeout_seconds": args.abacus_timeout,
+            "holonomic_timeout_seconds": args.holonomic_timeout,
         },
         "result_file": str(result_path),
         "result_sha256": sha256_file(result_path) if result_path.is_file() else None,
