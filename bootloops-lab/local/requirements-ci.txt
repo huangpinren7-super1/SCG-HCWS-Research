@@ -1,3 +1,0 @@
-# Canonical CI dependency lock; kept identical to the resident scientific layer.
--r requirements-core.txt
--r requirements-tooling.txt
