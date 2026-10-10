@@ -17,7 +17,8 @@
     "standard_timeout_seconds": 300,
     "exceptional_timeouts_seconds": {
       "dogtag": 360,
-      "abacus": 1200
+      "abacus": 1200,
+      "holonomic": 1200
     },
     "upstream_default_timeout_seconds": 300
   },
