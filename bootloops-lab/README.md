@@ -14,6 +14,7 @@ This layer connects the pinned BootLoops toolkit to SCG-HCWS computational resea
 
 - .github/workflows/bootloops.yml — reproducible cloud acceptance run.
 - bootloops-lab/requirements-core.txt — required Python math stack.
+- bootloops-lab/requirements-pari.txt — required `cypari2` binding for the upstream `abacus` acceptance battery.
 - bootloops-lab/requirements-extra-common.txt — common optional Python dependencies.
 - bootloops-lab/scripts/validate_checkout.py — pin and 49-package structural audit.
 - bootloops-lab/scripts/summarize_selftests.py — human-readable result table.
@@ -24,6 +25,8 @@ This layer connects the pinned BootLoops toolkit to SCG-HCWS computational resea
 ## Baseline choice
 
 Initial baseline: Ubuntu 24.04, Python 3.11, Julia 1.11, default per-package timeout 300 seconds, parallelism 4. This aligns with the existing BootLoops 1.0 baseline lineage. Change versions or timeout only in a separately reviewed run.
+
+The `abacus` selftest imports `cypari2` before entering its mathematical battery. The workflow therefore installs `pari-gp`, `pari-doc`, and `libpari-dev`, then installs and smoke-tests `cypari2` as a required dependency. In this Ubuntu baseline, `pari-doc` supplies the `gphelp` helper needed by the `cypari2` source build. A failed installation must stop the run; it must not be converted into an accepted refusal or hidden by `continue-on-error`.
 
 ## Run it
 

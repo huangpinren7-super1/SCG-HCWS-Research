@@ -1,0 +1,4 @@
+# Required specialized Python binding for the upstream abacus selftest.
+# The workflow installs the Debian pari-doc package because cypari2's source
+# build discovers PARI/GP functions through gphelp on this Ubuntu/Python 3.11 baseline.
+cypari2
