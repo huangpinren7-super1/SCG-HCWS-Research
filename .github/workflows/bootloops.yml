@@ -18,6 +18,13 @@ on:
         required: true
         default: "4"
         type: string
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/bootloops.yml"
+      - "bootloops-lab/**"
+      - "experiments/**"
+      - "certificates/**"
   push:
     branches: [main]
     paths:
@@ -65,7 +72,9 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: bootloops-lab/requirements-core.txt
+          cache-dependency-path: |
+            bootloops-lab/requirements-core.txt
+            bootloops-lab/requirements-pari.txt
 
       - name: Set up Julia baseline
         uses: julia-actions/setup-julia@v2
@@ -82,7 +91,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential gfortran pkg-config \
             libgmp-dev libmpfr-dev libmpc-dev \
-            pari-gp libpari-dev
+            pari-gp pari-doc libpari-dev
 
       - name: Install required Python scientific core
         run: |
@@ -93,9 +102,24 @@ jobs:
         continue-on-error: true
         run: python -m pip install -r bootloops-lab/requirements-extra-common.txt
 
-      - name: Install optional PARI/GP Python binding
-        continue-on-error: true
-        run: python -m pip install cypari2
+      - name: Install required cypari2 binding for abacus
+        run: |
+          set -o pipefail
+          python -m pip install -r bootloops-lab/requirements-pari.txt 2>&1 | tee cypari2-install.log
+
+      - name: Verify PARI/GP and cypari2 runtime
+        run: |
+          command -v gp
+          command -v gphelp
+          python - <<'PY'
+          from cypari2 import Pari
+
+          pari = Pari()
+          result = int(pari("2+2"))
+          if result != 4:
+              raise SystemExit(f"PARI smoke test failed: expected 4, got {result}")
+          print(f"PARI/cypari2 smoke test: PASS ({result})")
+          PY
 
       - name: Install optional population-genetics dependencies
         continue-on-error: true
@@ -160,6 +184,7 @@ jobs:
           path: |
             vendor/bootloops/selftest_results.json
             vendor/bootloops/bootloops-lab-selftest.log
+            cypari2-install.log
             bootloops-lab-acceptance-summary.md
             bootloops-lab-env.json
             pip-freeze.txt
