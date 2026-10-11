@@ -142,6 +142,13 @@ jobs:
           } > pip-freeze.txt
           cat pip-freeze.txt
 
+      - name: Prewarm Eichler Julia environment used by abacus
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          julia --project=vendor/bootloops/upgrades/Eichler.jl \
+            -e 'import Pkg; Pkg.instantiate(); using Arblib' 2>&1 | tee eichler-julia-prewarm.log
+
       - name: Run canonical upstream 49-package acceptance battery
         working-directory: vendor/bootloops
         run: |
@@ -185,6 +192,7 @@ jobs:
             vendor/bootloops/selftest_results.json
             vendor/bootloops/bootloops-lab-selftest.log
             cypari2-install.log
+            eichler-julia-prewarm.log
             bootloops-lab-acceptance-summary.md
             bootloops-lab-env.json
             pip-freeze.txt
